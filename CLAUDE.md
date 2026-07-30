@@ -23,5 +23,6 @@ Key files:
   figures; `capacity.test.ts` pins it. Fix the model, never the test.
 - `src/data/cabinets.ts`, `src/data/processors.ts` — the library. Every record needs
   `verified` + `source`. Primary datasheets only.
-- `src/export/resolume.ts` — version-specific bits live in `SCHEMA`.
+- `src/export/resolume.ts` — schema taken from real Arena 7.27 files (via `blend-calc`),
+  not from Resolume's docs. Version stamp lives in `ARENA_VERSION`.
 - `src/export/novastar.ts` — deliberately does not emit `.scr`/`.vmp`. Read the comment.
