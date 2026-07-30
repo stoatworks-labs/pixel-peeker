@@ -8,7 +8,8 @@ npm run dev        # vite dev server (port 5173)
 npm test           # vitest: capacity calibration + export regression
 npm run typecheck  # tsc -b (app + test projects)
 npm run build      # tsc -b && vite build -> dist/
-npm run deploy     # build + wrangler pages deploy dist
+npm run deploy     # build + wrangler deploy       (Worker + static assets)
+npm run deploy:lite # build:lite + wrangler deploy -c wrangler.lite.toml
 ```
 
 Write export artefacts to disk while testing:

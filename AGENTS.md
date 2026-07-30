@@ -10,8 +10,9 @@ work from scaffolding.
 
 A **static browser app** for designing LED video walls — cabinet layout, processor
 patching, port capacity, and export to the formats a video crew actually uses. React +
-TypeScript + Vite, deployed to Cloudflare Pages. Everything runs client-side; there is
-no backend and there should never be one.
+TypeScript + Vite, deployed to Cloudflare as a Worker that serves static assets.
+Everything runs client-side; there is no backend and there should never be one — the
+Worker exists only to serve `dist/`, not to run code.
 
 Public repo, MIT.
 
@@ -46,7 +47,7 @@ npm run dev        # vite dev server
 npm test           # vitest — capacity model + export regression
 npm run typecheck  # tsc -b across app + test configs
 npm run build      # tsc -b && vite build
-npm run deploy     # build + wrangler pages deploy
+npm run deploy     # build + wrangler deploy (Worker + static assets, not Pages)
 ```
 
 **tsconfig trap:** tests are Node-flavoured (`node:fs`, `Buffer`, `process`) and are
@@ -152,7 +153,7 @@ the VMP format is unblocked, delete the flag rather than leaving it lying around
 - Auto-wire (serpentine/column/row) with fill limits, and wiring validation
 - Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests)
 - Canvas: place, marquee-select, nudge, delete, pan/zoom, undo/redo
-- Cloudflare Pages config, lazy-loaded PDF bundle
+- Cloudflare Worker (static-assets) config, lazy-loaded PDF bundle
 
 **Scaffolding / known gaps:**
 - **Cabinet library is small** — 20 models. The schema and importer path matter more

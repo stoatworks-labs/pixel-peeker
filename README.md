@@ -15,7 +15,7 @@ processors, wire the ports, and find out whether it actually fits — before you
 out on site.
 
 Runs entirely in the browser. No account, no server, nothing uploaded. Deploys to
-Cloudflare Pages as a static site.
+Cloudflare as a static site.
 
 **Status: alpha.** The maths is tested against published manufacturer figures; the
 cabinet library is small; one export format is unverified. See below — the honesty is
@@ -164,21 +164,35 @@ npm run build:lite   # lite  -> dist-lite/
 is still in the bundle. That check exists because the first attempt at the flag silently
 did not strip anything and the build log looked identical either way.
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare
 
-Static SPA — no Worker, nothing server-side.
+Deployed as a **Worker serving static assets**, not a Pages project. There is still no
+server code — the Worker's only job is to serve `dist/`. This is the shape Cloudflare's
+"Import a repository" flow creates, and what the rest of the fleet uses.
+
+The normal route is to connect the repo once in the Cloudflare dashboard, after which
+every push to `main` builds and deploys itself:
+
+| Setting | Full | Lite |
+|---|---|---|
+| Worker name | `pixel-peeker` | `pixel-peeker-lite` |
+| Build command | `npm ci && npm run build` | `npm ci && npm run build:lite` |
+| Deploy command | `npx wrangler deploy` | `npx wrangler deploy -c wrangler.lite.toml` |
+| Output directory | `dist` | `dist-lite` |
+
+Two repos-worth of config in one repo, so the two Workers are created separately from
+the same source and differ only in build and deploy command.
+
+To publish from this machine instead — one-off, or without pushing:
 
 ```bash
-npm run deploy
+npm run deploy       # full
+npm run deploy:lite  # lite
 ```
 
-```bash
-npm run deploy:lite
-```
-
-Or connect the repo in the Pages dashboard with build command `npm run build` and
-output directory `dist`. `wrangler.toml`, `public/_headers` and `public/_redirects` are
-already in place.
+`wrangler.toml`, `wrangler.lite.toml`, `public/_headers` and `public/_redirects` are all
+already in place. `_redirects` is what makes the client-side routes resolve rather
+than 404.
 
 ## Licence
 

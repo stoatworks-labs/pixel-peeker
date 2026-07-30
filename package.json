@@ -10,9 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=pixel-peeker",
+    "deploy": "npm run build && wrangler deploy",
     "build:lite": "tsc -b && vite build --mode lite --outDir dist-lite && node scripts/check-lite.mjs",
-    "deploy:lite": "npm run build:lite && wrangler pages deploy dist-lite -c wrangler.lite.toml --project-name=pixel-peeker-lite"
+    "deploy:lite": "npm run build:lite && wrangler deploy -c wrangler.lite.toml"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
