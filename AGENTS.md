@@ -103,14 +103,22 @@ different revision under the same product name.
 decision, not an omission — read the block comment before "fixing" it. A file that loads
 with a subtly wrong map is worse on site than no file.
 
-`export/resolume.ts` *does* emit XML, but is clearly labelled unverified in the code, in
-the UI and in the report. Everything version-specific lives in the `SCHEMA` constant so
-that correcting it against a real Arena export is one edit.
+`export/resolume.ts` emits XML against a schema **reverse-engineered from real Arena
+7.27.0 files** (done for the sibling project `blend-calc` — see its
+`docs/resolume-export.md` for the annotated sources). An earlier version of this file
+was written from Resolume's public documentation and was substantially wrong: no vertex
+lists, no Warper, no OutputDevice, no uniqueIds. Do not simplify back towards that.
+`ARENA_VERSION` holds the version stamp if it needs bumping.
+
+The remaining honest gap: the schema is verified, but Pixel Peeker's particular
+arrangement (many slices in one screen, one screen per processor) has not itself been
+loaded into a running Arena.
 
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**
 - Capacity model, calibrated against two vendors' published figures (12 tests)
+- Resolume Arena 7.27 preset export, schema taken from real Arena files
 - Wall geometry, stats, layout validation
 - Auto-wire (serpentine/column/row) with fill limits, and wiring validation
 - Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests)
@@ -121,7 +129,8 @@ that correcting it against a real Arena export is one edit.
 - **Cabinet library is small** — 20 models. The schema and importer path matter more
   than the count, but it needs filling out from datasheets.
 - **Receiving card limits are placeholders**, all `verified: false`.
-- **Resolume XML is unverified** against a real Arena install.
+- **Resolume XML** uses a verified schema but this app's slice arrangement has not been
+  opened in a running Arena.
 - **No manual port patching UI** — you can auto-wire or clear, but not drag a cabinet
   onto a specific port. `patchCabinetsTo` exists in the store and is unused.
 - **No CSV/JSON import** for bulk-loading a cabinet library.

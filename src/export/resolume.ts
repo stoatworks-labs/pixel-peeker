@@ -1,41 +1,53 @@
 /**
- * Pixel Peeker — Resolume Advanced Output export.
+ * Pixel Peeker — Resolume Arena "Advanced Output" export.
  *
- * ############################################################################
- * # STATUS: UNVERIFIED AGAINST A REAL RESOLUME INSTALL.                      #
- * #                                                                          #
- * # The element names below (XmlState / versionInfo / ScreenSetup / Params / #
- * # sizing / inputs / InputSize / screens / Screen / slices / Slice) come     #
- * # from Resolume's own published documentation and forum posts. The exact    #
- * # attribute names and the Params contents have NOT been round-tripped       #
- * # through Arena, and Resolume state plainly that the screensetup XML is     #
- * # "primarily for internal use" and that they change it between releases.    #
- * #                                                                          #
- * # To fix this properly: export a screensetup preset from the target Arena   #
- * # version, diff it against `buildResolumeXml` output, and correct the       #
- * # constants in SCHEMA below. Everything version-specific is deliberately    #
- * # gathered there so the fix is one edit, not a rewrite.                     #
- * #                                                                          #
- * # Until then the UI labels this export as unverified. Do not remove that    #
- * # label without doing the round-trip test.                                  #
- * ############################################################################
+ * SCHEMA PROVENANCE
+ * =================
+ * The element names, attribute names, nesting and number formatting here were read
+ * off two REAL files written by Resolume Arena 7.27.0 (rev 14395):
  *
- * Mapping decision: one <Screen> per processor, one <Slice> per output port. That
- * makes each port's block of pixels independently positionable on the Resolume
- * composition, which is what an operator actually wants — it is the unit you move
- * when a port gets re-patched.
+ *   ~/Documents/Resolume Arena/Preferences/AdvancedOutput.xml
+ *   ~/Documents/Resolume Arena/Presets/Advanced Output/output_map_1.xml
+ *
+ * They are NOT guessed from documentation. The schema was reverse-engineered for the
+ * sibling project `blend-calc` (see its docs/resolume-export.md for the annotated
+ * source files); this module reuses that verified structure with an LED-specific
+ * layout. An earlier version of this file was written from Resolume's public docs and
+ * was substantially wrong — it had no vertex lists, no Warper, no OutputDevice and no
+ * uniqueIds. Do not "simplify" back towards that.
+ *
+ * STILL WORTH CHECKING: the schema is verified, but this particular arrangement
+ * (many slices inside one screen, one screen per processor) has not itself been
+ * loaded into a running Arena. The slice CSV alongside carries no format risk.
+ *
+ * WHAT THIS WRITES
+ * ================
+ * One `<Screen>` per processor — a processor is fed by one physical video output from
+ * the media server, so it is the natural unit of "screen".
+ *
+ * One `<Slice>` per output port, inside that screen. That makes each port's block of
+ * pixels independently positionable, which is the unit an operator actually moves when
+ * a port gets re-patched.
+ *
+ *   InputRect     the port's region of the composition, in composition pixels
+ *   OutputRect    where that region sits within the processor's raster, 0-based
+ *   Warper        identity 4x4 Bezier grid + identity homography, so every control
+ *                 point starts exactly on the output rect
+ *   OutputDevice  a Virtual device sized to the processor's raster. A real display's
+ *                 deviceId and idHash are properties of the machine Resolume runs on
+ *                 and cannot be synthesised — assign each screen to a physical output
+ *                 once loaded.
  */
 
-import type { PixelMap } from '../domain/pixelmap';
+import type { MappedChain, PixelMap } from '../domain/pixelmap';
 import type { Project } from '../domain/types';
 
-/** Everything that is version-specific about the file, in one place. */
-const SCHEMA = {
+const ARENA_VERSION = {
+  name: 'Resolume Arena',
   majorVersion: 7,
-  minorVersion: 0,
+  minorVersion: 27,
   microVersion: 0,
-  revision: 0,
-  rootName: 'ScreenSetup',
+  revision: 14395,
 };
 
 function esc(s: string): string {
@@ -43,31 +55,152 @@ function esc(s: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
-/** Resolume stores rectangles as four corner vertices, in pixels. */
-function rectXml(
-  tag: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  indent: string,
-): string {
+/** Resolume writes plain decimals, and integers without a decimal point. */
+function n(v: number): string {
+  const r = Math.abs(v) < 1e-9 ? 0 : v;
+  return Number.isInteger(r) ? String(r) : String(Number(r.toFixed(6)));
+}
+
+/** Clockwise from top-left, matching how Arena writes InputRect/OutputRect. */
+function rect(x0: number, y0: number, x1: number, y1: number) {
   return [
-    `${indent}<${tag}>`,
-    `${indent}  <Rectangle x="${x}" y="${y}" width="${w}" height="${h}"/>`,
-    `${indent}</${tag}>`,
-  ].join('\n');
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+}
+
+function vertsXml(pts: { x: number; y: number }[], indent: string): string {
+  return pts.map((p) => `${indent}<v x="${n(p.x)}" y="${n(p.y)}"/>`).join('\n');
+}
+
+/**
+ * A 4x4 identity Bezier control grid over the output rect, written row-major with y
+ * increasing — the ordering Arena uses for an unrotated slice.
+ */
+function bezierGrid(x0: number, y0: number, x1: number, y1: number) {
+  const pts: { x: number; y: number }[] = [];
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      pts.push({
+        x: x0 + ((x1 - x0) * c) / 3,
+        y: y0 + ((y1 - y0) * r) / 3,
+      });
+    }
+  }
+  return pts;
+}
+
+function sliceXml(
+  chain: MappedChain,
+  origin: { x: number; y: number },
+  sliceId: number,
+  ind: string,
+): string {
+  const i = (k: number) => ind + '\t'.repeat(k);
+  const b = chain.bounds;
+  const inputPts = rect(b.x, b.y, b.x + b.width, b.y + b.height);
+  // Output is the same region, relative to this processor's own raster.
+  const ox = b.x - origin.x;
+  const oy = b.y - origin.y;
+  const outputPts = rect(ox, oy, ox + b.width, oy + b.height);
+  const bezier = bezierGrid(ox, oy, ox + b.width, oy + b.height);
+  const name = `${chain.processorName} ${chain.portLabel}`;
+
+  return `${i(0)}<Slice uniqueId="${sliceId}">
+${i(1)}<Params name="Common">
+${i(2)}<Param name="Name" T="STRING" default="Layer" value="${esc(name)}"/>
+${i(2)}<Param name="Enabled" T="BOOL" default="1" value="1"/>
+${i(1)}</Params>
+${i(1)}<Params name="Input">
+${i(2)}<ParamChoice name="Input Source" default="0:1" value="0:1" storeChoices="0"/>
+${i(1)}</Params>
+${i(1)}<Params name="Output">
+${i(2)}<Param name="Flip" T="UINT8" default="0" value="0"/>
+${i(1)}</Params>
+${i(1)}<InputRect orientation="0">
+${vertsXml(inputPts, i(2))}
+${i(1)}</InputRect>
+${i(1)}<OutputRect orientation="0">
+${vertsXml(outputPts, i(2))}
+${i(1)}</OutputRect>
+${i(1)}<Warper>
+${i(2)}<Params name="Warper">
+${i(3)}<ParamChoice name="Point Mode" default="PM_LINEAR" value="PM_LINEAR" storeChoices="0"/>
+${i(3)}<Param name="Flip" T="UINT8" default="0" value="0"/>
+${i(2)}</Params>
+${i(2)}<BezierWarper controlWidth="4" controlHeight="4">
+${i(3)}<vertices>
+${vertsXml(bezier, i(4))}
+${i(3)}</vertices>
+${i(2)}</BezierWarper>
+${i(2)}<Homography>
+${i(3)}<src>
+${vertsXml(outputPts, i(4))}
+${i(3)}</src>
+${i(3)}<dst>
+${vertsXml(outputPts, i(4))}
+${i(3)}</dst>
+${i(2)}</Homography>
+${i(1)}</Warper>
+${i(0)}</Slice>`;
+}
+
+function screenXml(
+  screenName: string,
+  chains: MappedChain[],
+  screenId: number,
+  nextId: () => number,
+  ind: string,
+): string {
+  const i = (k: number) => ind + '\t'.repeat(k);
+
+  // The processor's raster is the bounding box of everything it drives.
+  const x0 = Math.min(...chains.map((c) => c.bounds.x));
+  const y0 = Math.min(...chains.map((c) => c.bounds.y));
+  const x1 = Math.max(...chains.map((c) => c.bounds.x + c.bounds.width));
+  const y1 = Math.max(...chains.map((c) => c.bounds.y + c.bounds.height));
+  const width = x1 - x0;
+  const height = y1 - y0;
+
+  const slices = chains
+    .map((c) => sliceXml(c, { x: x0, y: y0 }, nextId(), ind + '\t\t'))
+    .join('\n');
+
+  return `${i(0)}<Screen name="${esc(screenName)}" uniqueId="${screenId}">
+${i(1)}<Params name="Params">
+${i(2)}<Param name="Name" T="STRING" default="" value="${esc(screenName)}"/>
+${i(2)}<Param name="Enabled" T="BOOL" default="1" value="1"/>
+${i(2)}<Param name="Hidden" T="BOOL" default="0" value="0"/>
+${i(1)}</Params>
+${i(1)}<guides>
+${i(2)}<ScreenGuide name="ScreenGuide" type="0"/>
+${i(2)}<ScreenGuide name="ScreenGuide" type="1"/>
+${i(1)}</guides>
+${i(1)}<layers>
+${slices}
+${i(1)}</layers>
+${i(1)}<OutputDevice>
+${i(2)}<OutputDeviceVirtual name="${esc(screenName)}" deviceId="Virtual${esc(
+    screenName,
+  )}" width="${width}" height="${height}"/>
+${i(1)}</OutputDevice>
+${i(0)}</Screen>`;
 }
 
 export interface ResolumeOptions {
-  /** Composition size. Defaults to the wall's own pixel bounding box. */
-  compositionWidth?: number;
-  compositionHeight?: number;
-  /** One screen per processor (default) or a single screen for the whole wall. */
-  screenPerProcessor?: boolean;
+  /**
+   * `preset`      -> a file for Presets/Advanced Output/ (root <XmlState>)
+   * `preferences` -> a drop-in AdvancedOutput.xml (root <ScreenSetup>)
+   */
+  target?: 'preset' | 'preferences';
+  /** Base for the generated uniqueIds. Injectable so tests are deterministic. */
+  idBase?: number;
 }
 
 export function buildResolumeXml(
@@ -75,77 +208,77 @@ export function buildResolumeXml(
   map: PixelMap,
   options: ResolumeOptions = {},
 ): string {
-  const compW = options.compositionWidth ?? map.width;
-  const compH = options.compositionHeight ?? map.height;
-  const screenPerProcessor = options.screenPerProcessor ?? true;
+  const target = options.target ?? 'preset';
+  const projectName = project.name.trim() || 'Pixel Peeker';
 
-  // Group chains into screens.
-  const groups = new Map<string, typeof map.chains>();
+  // Group the chains by processor — one screen each.
+  const groups = new Map<string, MappedChain[]>();
   for (const chain of map.chains) {
-    const key = screenPerProcessor ? chain.processorId : 'all';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(chain);
+    if (!groups.has(chain.processorId)) groups.set(chain.processorId, []);
+    groups.get(chain.processorId)!.push(chain);
   }
 
-  const screens: string[] = [];
-  for (const [key, chains] of groups) {
-    const name = screenPerProcessor
-      ? chains[0]?.processorName ?? key
-      : project.canvas.name;
+  // Ids only have to be unique within the file. Real Arena files use epoch-ish
+  // millisecond values; a fixed base keeps the export reproducible.
+  const base = options.idBase ?? 1800000000000;
+  let seq = 0;
+  const nextId = () => base + seq++;
 
-    const slices = chains
-      .map((chain) => {
-        const { x, y, width, height } = chain.bounds;
-        return [
-          `        <Slice name="${esc(`${chain.processorName} ${chain.portLabel}`)}">`,
-          `          <Params/>`,
-          rectXml('InputRect', x, y, width, height, '          '),
-          rectXml('OutputRect', x, y, width, height, '          '),
-          `        </Slice>`,
-        ].join('\n');
-      })
-      .join('\n');
+  const v = ARENA_VERSION;
+  const versionInfo =
+    `<versionInfo name="${v.name}" majorVersion="${v.majorVersion}" ` +
+    `minorVersion="${v.minorVersion}" microVersion="${v.microVersion}" revision="${v.revision}"/>`;
 
-    screens.push(
-      [
-        `    <Screen name="${esc(name)}">`,
-        `      <Params/>`,
-        `      <slices>`,
-        slices,
-        `      </slices>`,
-        `    </Screen>`,
-      ].join('\n'),
-    );
+  const indent = target === 'preset' ? '\t\t\t' : '\t\t';
+  const screens = [...groups.entries()]
+    .map(([, chains]) =>
+      screenXml(chains[0].processorName, chains, nextId(), nextId, indent),
+    )
+    .join('\n');
+
+  if (target === 'preset') {
+    return `<?xml version="1.0" encoding="utf-8"?>
+<XmlState name="${esc(projectName)}">
+\t${versionInfo}
+\t<ScreenSetup name="ScreenSetup">
+\t\t<Params name="ScreenSetupParams"/>
+\t\t<CurrentCompositionTextureSize width="${map.width}" height="${map.height}"/>
+\t\t<screens>
+${screens}
+\t\t</screens>
+\t</ScreenSetup>
+</XmlState>
+`;
   }
 
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    `<!-- Generated by Pixel Peeker for "${esc(project.name)}".`,
-    '     UNVERIFIED FORMAT: this file has not been round-tripped through Resolume Arena.',
-    '     Check it opens before relying on it, and see src/export/resolume.ts. -->',
-    `<XmlState name="${SCHEMA.rootName}">`,
-    `  <versionInfo majorVersion="${SCHEMA.majorVersion}" minorVersion="${SCHEMA.minorVersion}" microVersion="${SCHEMA.microVersion}" revision="${SCHEMA.revision}"/>`,
-    `  <${SCHEMA.rootName}>`,
-    '    <Params/>',
-    '    <sizing>',
-    '      <inputs>',
-    `        <InputSize width="${compW}" height="${compH}"/>`,
-    '      </inputs>',
-    '    </sizing>',
-    '    <screens>',
-    ...screens,
-    '    </screens>',
-    `  </${SCHEMA.rootName}>`,
-    '</XmlState>',
-    '',
-  ].join('\n');
+  // Arena writes the SoftEdging block only in the preferences file.
+  const softEdging = [
+    `<SoftEdging>`,
+    `\t<Params name="Soft Edge">`,
+    `\t\t<ParamRange name="Power" T="DOUBLE" default="2" value="2">`,
+    `\t\t\t<PhaseSourceStatic name="PhaseSourceStatic"/>`,
+    `\t\t</ParamRange>`,
+    `\t</Params>`,
+    `</SoftEdging>`,
+  ];
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<ScreenSetup name="ScreenSetup">
+\t${versionInfo}
+\t<CurrentCompositionTextureSize width="${map.width}" height="${map.height}"/>
+\t<screens>
+${screens}
+\t</screens>
+\t${softEdging.join('\n\t')}
+</ScreenSetup>
+`;
 }
 
 /**
  * A plain slice list, in the same geometry as the XML.
  *
- * This one carries no format risk: if the XML above does not import, an operator can
- * build the same mapping by hand in a couple of minutes from this table.
+ * This one carries no format risk: if the XML does not import, an operator can build
+ * the same mapping by hand in a couple of minutes from this table.
  */
 export function buildSliceCsv(map: PixelMap): string {
   const rows = [

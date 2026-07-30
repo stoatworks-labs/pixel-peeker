@@ -99,12 +99,15 @@ database is a protected work in its own right under UK/EU database right.
 - **PDF report** — complete and reliable.
 - **Cabinet schedule CSV, config brief, JSON interchange** — complete and reliable.
   These carry the full pixel map, port assignments and sending order.
-- **Resolume Advanced Output XML** — ⚠️ **unverified.** Built from Resolume's documented
-  element names but never round-tripped through Arena, and Resolume state the format is
-  internal and changes between releases. A slice CSV with identical geometry ships
-  alongside it as a no-risk fallback. To fix properly: export a screensetup preset from
-  your Arena version, diff it, and correct the constants in `SCHEMA` in
-  `src/export/resolume.ts` — everything version-specific is gathered there.
+- **Resolume Advanced Output XML** — schema verified. Element names, nesting and number
+  formatting were read off real files written by **Arena 7.27.0 (rev 14395)**, not
+  guessed from documentation (the schema was reverse-engineered for the sibling project
+  `blend-calc`). Writes one `<Screen>` per processor and one `<Slice>` per output port,
+  with identity Bezier warpers and Virtual output devices — assign each screen to a
+  physical output once loaded. ⚠️ The *schema* is verified but this particular
+  arrangement has not itself been loaded into a running Arena, and Resolume change the
+  format between releases. A slice CSV with identical geometry ships alongside as a
+  no-risk fallback.
 - **NovaStar LCT `.scr` and VMP project files** — **not generated, by choice.** They are
   proprietary and partly binary. Guessing at the container produces a file that either
   fails to load or, worse, loads with a subtly wrong map — which on site is far more

@@ -93,19 +93,49 @@ describe('exports', () => {
     expect(first[13].y).toBe(4 * 500);
   });
 
-  it('generates well-formed Resolume XML with one slice per used port', () => {
-    const xml = buildResolumeXml(project, map);
-    expect(xml).toContain('<XmlState name="ScreenSetup">');
-    expect(xml).toContain('UNVERIFIED FORMAT');
+  it('generates Resolume XML matching the Arena 7.27 schema', () => {
+    const xml = buildResolumeXml(project, map, { idBase: 1000 });
+
+    // Preset files wrap the ScreenSetup in an XmlState named for the project.
+    expect(xml).toContain('<XmlState name="Test Wall">');
+    expect(xml).toContain('name="Resolume Arena" majorVersion="7" minorVersion="27"');
+    expect(xml).toContain(
+      `<CurrentCompositionTextureSize width="3200" height="1800"/>`,
+    );
+
+    // One screen per processor, one slice per used port.
+    expect(xml.match(/<Screen /g)).toHaveLength(1);
     expect(xml.match(/<Slice /g)).toHaveLength(11);
-    // One screen per processor.
-    expect(xml.split('<Screen ').length - 1).toBe(1);
+
+    // The structures that the naive doc-derived version was missing.
+    expect(xml.match(/<BezierWarper controlWidth="4" controlHeight="4">/g)).toHaveLength(11);
+    expect(xml.match(/<Homography>/g)).toHaveLength(11);
+    expect(xml).toContain('<OutputDeviceVirtual');
+    // Rects are vertex lists, not x/y/width/height attributes.
+    expect(xml).not.toContain('<Rectangle');
+    expect(xml).toMatch(/<InputRect orientation="0">\s*<v x=/);
+
+    // uniqueIds must actually be unique within the file.
+    const ids = [...xml.matchAll(/uniqueId="(\d+)"/g)].map((m) => m[1]);
+    expect(ids.length).toBe(12); // 1 screen + 11 slices
+    expect(new Set(ids).size).toBe(ids.length);
+
     // Every opened tag is closed — a crude but effective well-formedness check.
-    for (const tag of ['XmlState', 'ScreenSetup', 'screens', 'Screen', 'slices']) {
+    for (const tag of ['XmlState', 'ScreenSetup', 'screens', 'Screen', 'layers', 'Slice', 'Warper']) {
       expect(xml.match(new RegExp(`<${tag}[ >]`, 'g'))?.length).toBe(
         xml.match(new RegExp(`</${tag}>`, 'g'))?.length,
       );
     }
+  });
+
+  it('maps the first port to its real pixel region, output rect 0-based', () => {
+    const xml = buildResolumeXml(project, map, { idBase: 1000 });
+    // ETH 1 covers columns 0-1: 400 x 1800 px at the origin, so input and output
+    // rects coincide for a single-processor wall anchored at 0,0.
+    expect(xml).toContain(
+      '<v x="0" y="0"/>\n\t\t\t\t\t\t\t<v x="400" y="0"/>\n\t\t\t\t\t\t\t<v x="400" y="1800"/>\n\t\t\t\t\t\t\t<v x="0" y="1800"/>',
+    );
+    expect(xml).toContain('width="3200" height="1800"/>'); // virtual output device
   });
 
   it('writes a cabinet schedule with a row per cabinet plus a header', () => {

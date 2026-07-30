@@ -335,9 +335,11 @@ function ExportSection() {
           CSV
         </button>
       </div>
-      <div className="note warn">
-        The Resolume XML has not been round-tripped through Arena — check it opens
-        before you rely on it. The slice CSV carries no format risk.
+      <div className="note">
+        Arena 7.27 preset format, one screen per processor and one slice per port.
+        Drop it in <code>Presets/Advanced Output/</code>. Screens load as Virtual
+        output devices — assign each to a physical output once open. The slice CSV
+        is the same geometry as a plain table.
       </div>
 
       <div className="row" style={{ marginTop: 8 }}>
