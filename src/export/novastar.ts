@@ -4,12 +4,20 @@
  * ############################################################################
  * # HONEST STATEMENT OF WHAT THIS CAN AND CANNOT DO.                         #
  * #                                                                          #
- * # LCT screen configuration files (.scr) and VMP project files are          #
- * # proprietary, undocumented and partly binary. Nobody can write a valid    #
- * # one without either NovaStar's documentation or a reverse-engineering     #
- * # effort against real sample files. Guessing at the container would        #
- * # produce a file that silently fails to load, or worse, loads with a       #
- * # subtly wrong map — which on site is far more damaging than no file.      #
+ * # LCT screen configuration files (.scr) remain proprietary and partly      #
+ * # binary, and are not fabricated here.                                      #
+ * #                                                                          #
+ * # VMP project files (.nprj) turn out to be a ZIP OF PLAIN JSON — see       #
+ * # docs/novastar-vmp-format.md, written from a real VMP V1.5.1 export.      #
+ * # A writer is realistic and mostly mapped out. One thing still blocks it:  #
+ * # the sample used only ONE Ethernet port, so `connectID` cannot be         #
+ * # distinguished between "sending order within a port" and "port index",    #
+ * # and nothing else in the tree names a port. That doc records the exact    #
+ * # experiment that would settle it.                                          #
+ * #                                                                          #
+ * # Until then: guessing at the port mapping would produce a file that       #
+ * # loads and looks right but drives the wrong cabinets, which on site is    #
+ * # far more damaging than no file.                                          #
  * #                                                                          #
  * # So this module does NOT fabricate a .scr or a .vmp. It emits the         #
  * # complete screen configuration as data, in the two forms that are         #

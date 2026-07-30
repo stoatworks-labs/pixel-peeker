@@ -99,9 +99,18 @@ different revision under the same product name.
 
 ### 4.4 Exports must not fabricate proprietary containers
 
-`export/novastar.ts` deliberately does **not** emit `.scr` or `.vmp` files. This is a
+`export/novastar.ts` deliberately does **not** emit `.scr` or `.nprj` files. This is a
 decision, not an omission — read the block comment before "fixing" it. A file that loads
 with a subtly wrong map is worse on site than no file.
+
+**VMP `.nprj` is now largely mapped** — see `docs/novastar-vmp-format.md`, written from a
+real VMP V1.5.1 export. It is a zip of zips of plain JSON, and `cabinetID` is a derivable
+bit-packed field, not an opaque handle. A writer is realistic. The one blocker is that the
+sample exercised a single Ethernet port, leaving `connectID` ambiguous between sending
+order and port index, and nothing else in the tree names a port. The doc records the exact
+experiment that resolves it. Do not implement the writer before that is settled.
+
+LCT `.scr` remains genuinely proprietary and is a separate problem.
 
 `export/resolume.ts` emits XML against a schema **reverse-engineered from real Arena
 7.27.0 files** (done for the sibling project `blend-calc` — see its
@@ -134,6 +143,7 @@ loaded into a running Arena.
 - **No manual port patching UI** — you can auto-wire or clear, but not drag a cabinet
   onto a specific port. `patchCabinetsTo` exists in the store and is unused.
 - **No CSV/JSON import** for bulk-loading a cabinet library.
+- **VMP `.nprj` writer** not started — format documented, blocked on one ambiguity.
 - **No redundancy modelling** — `ProcessorSpec.redundancy` is recorded but not used in
   any calculation or check.
 - **Mixed-pitch walls** produce an approximate pixel map, flagged but not solved.
