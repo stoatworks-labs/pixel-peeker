@@ -1,0 +1,428 @@
+/**
+ * Pixel Peeker — cabinet library.
+ *
+ * PROVENANCE POLICY — read before adding anything.
+ *
+ * `verified: true` means the numbers came from a manufacturer datasheet, and the
+ * `source` field says which one. Everything in this file marked verified was parsed
+ * out of the PDF named in its `source`, not typed from memory and not taken from a
+ * rental house's listing page (those are frequently wrong, and frequently describe a
+ * different revision of the same product name).
+ *
+ * `verified: false` means the record is good enough to lay out a wall with but must
+ * not be used to quote a job or size a distro. The UI badges these.
+ *
+ * DO NOT copy records out of a competitor's curated database. The specs themselves
+ * are facts and are fine to take from the manufacturer; a compiled database is a
+ * protected work in its own right under UK/EU database right. Primary sources only.
+ *
+ * Power figures: where a datasheet quotes W/m2, the per-panel figure here is derived
+ * from the actual panel area. Where it quotes W/tile, it is used directly.
+ */
+
+import type { CabinetSpec } from '../domain/types';
+
+const ABSEN_PL_V2_SOURCE =
+  'Absen PL V2 Series Specifications, usabsen.com, rev 2025-04-30';
+
+/**
+ * Absen Polaris PL V2 series.
+ * The "(Brompton)" and "(NovaStar)" variants are separate SKUs with different
+ * receiving cards — they are genuinely different products to configure, so they are
+ * separate records here rather than one record with a card option.
+ */
+const ABSEN: CabinetSpec[] = [
+  {
+    id: 'absen-pl25-xr-v2-brompton',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.5 XR V2 (Brompton)',
+    pixelPitchMm: 2.5,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 200, pixelsY: 200,
+    weightKg: 7.8,
+    powerMaxW: 185, powerAvgW: 61.8,
+    scanRate: 8,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 1500,
+    receivingCardId: 'brompton-r2',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+    notes: 'XR/virtual-production variant. 1/8 scan for low-latency camera work.',
+  },
+  {
+    id: 'absen-pl25-pro-v2-brompton',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.5 Pro V2 (Brompton)',
+    pixelPitchMm: 2.5,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 200, pixelsY: 200,
+    weightKg: 7.8,
+    powerMaxW: 170, powerAvgW: 57.5,
+    scanRate: 20,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 1500,
+    receivingCardId: 'brompton-r2',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl25-pro-v2-novastar',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.5 Pro V2 (NovaStar)',
+    pixelPitchMm: 2.5,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 200, pixelsY: 200,
+    weightKg: 7.8,
+    powerMaxW: 170, powerAvgW: 57.5,
+    scanRate: 20,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 1500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl29-pro-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.9 Pro V2 (NovaStar)',
+    pixelPitchMm: 2.97,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 168, pixelsY: 168,
+    weightKg: 8.0,
+    powerMaxW: 152.5, powerAvgW: 51,
+    scanRate: 14,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 3000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl39-pro-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL3.9 Pro V2 (NovaStar)',
+    pixelPitchMm: 3.9,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 128, pixelsY: 128,
+    weightKg: 8.0,
+    powerMaxW: 200, powerAvgW: 66.8,
+    scanRate: 8,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl48-pro-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL4.8 Pro V2 (NovaStar)',
+    pixelPitchMm: 4.8,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 104, pixelsY: 104,
+    weightKg: 8.0,
+    powerMaxW: 200, powerAvgW: 66.8,
+    scanRate: 7,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl19-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL1.9 Plus V2 (NovaStar)',
+    pixelPitchMm: 1.953,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 256, pixelsY: 256,
+    weightKg: 7.8,
+    powerMaxW: 175, powerAvgW: 58.8,
+    scanRate: 16,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+    notes: '65,536 px per cabinet — the densest tile in the library. Watch port loading.',
+  },
+  {
+    id: 'absen-pl25-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.5 Plus V2 (NovaStar)',
+    pixelPitchMm: 2.5,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 200, pixelsY: 200,
+    weightKg: 7.8,
+    powerMaxW: 160, powerAvgW: 53.8,
+    scanRate: 20,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 1200,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl29-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.9 Plus V2 (NovaStar)',
+    pixelPitchMm: 2.97,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 168, pixelsY: 168,
+    weightKg: 7.8,
+    powerMaxW: 140, powerAvgW: 46.8,
+    scanRate: 21,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl39-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL3.9 Plus V2 (NovaStar)',
+    pixelPitchMm: 3.9,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 128, pixelsY: 128,
+    weightKg: 7.8,
+    powerMaxW: 140, powerAvgW: 46.8,
+    scanRate: 16,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl29w-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL2.9W Plus V2 (NovaStar)',
+    pixelPitchMm: 2.97,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 168, pixelsY: 168,
+    weightKg: 8.0,
+    powerMaxW: 180, powerAvgW: 60,
+    scanRate: 14,
+    maxRefreshHz: 7680,
+    greyscaleBits: 15,
+    brightnessNits: 4000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+    notes: 'W = weatherproof / high-brightness outdoor variant.',
+  },
+  {
+    id: 'absen-pl39b-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL3.9B Plus V2 (NovaStar)',
+    pixelPitchMm: 3.9,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 128, pixelsY: 128,
+    weightKg: 8.0,
+    powerMaxW: 172.5, powerAvgW: 57.5,
+    scanRate: 8,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl39w-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL3.9W Plus V2 (NovaStar)',
+    pixelPitchMm: 3.9,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 128, pixelsY: 128,
+    weightKg: 8.0,
+    powerMaxW: 150, powerAvgW: 50,
+    scanRate: 8,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+  {
+    id: 'absen-pl48w-plus-v2',
+    manufacturer: 'Absen',
+    series: 'Polaris PL V2',
+    model: 'PL4.8W Plus V2 (NovaStar)',
+    pixelPitchMm: 4.8,
+    widthMm: 500, heightMm: 500, depthMm: 78,
+    pixelsX: 104, pixelsY: 104,
+    weightKg: 8.0,
+    powerMaxW: 150, powerAvgW: 50,
+    scanRate: 7,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ABSEN_PL_V2_SOURCE,
+  },
+];
+
+const ALUVISION_SOURCE = 'Aluvision Hi-LED 55 brochure (via psco.co.uk), spec page 23';
+
+/**
+ * Aluvision Hi-LED 55.
+ * Note the 496 mm tile, not 500 — Aluvision's frame system is built on 496 and it
+ * will not interleave with 500 mm cabinets on the same wall without a gap.
+ */
+const ALUVISION: CabinetSpec[] = [
+  {
+    id: 'aluvision-hiled55-19',
+    manufacturer: 'Aluvision',
+    series: 'Hi-LED 55',
+    model: 'Hi-LED 55 1.9',
+    pixelPitchMm: 1.9,
+    widthMm: 496, heightMm: 496, depthMm: 55,
+    pixelsX: 256, pixelsY: 256,
+    weightKg: 9.5,
+    powerMaxW: 120, powerAvgW: 40,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a10s-pro',
+    verified: true,
+    source: ALUVISION_SOURCE,
+  },
+  {
+    id: 'aluvision-hiled55-25',
+    manufacturer: 'Aluvision',
+    series: 'Hi-LED 55',
+    model: 'Hi-LED 55 2.5',
+    pixelPitchMm: 2.58,
+    widthMm: 496, heightMm: 496, depthMm: 55,
+    pixelsX: 192, pixelsY: 192,
+    weightKg: 9.5,
+    powerMaxW: 150, powerAvgW: 50,
+    maxRefreshHz: 3840,
+    greyscaleBits: 14,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a8s',
+    verified: true,
+    source: ALUVISION_SOURCE,
+  },
+  {
+    id: 'aluvision-hiled55-28',
+    manufacturer: 'Aluvision',
+    series: 'Hi-LED 55',
+    model: 'Hi-LED 55 2.8',
+    pixelPitchMm: 2.82,
+    widthMm: 496, heightMm: 496, depthMm: 55,
+    pixelsX: 176, pixelsY: 176,
+    weightKg: 9.0,
+    powerMaxW: 145, powerAvgW: 49,
+    maxRefreshHz: 3840,
+    greyscaleBits: 14,
+    brightnessNits: 1000,
+    receivingCardId: 'novastar-a4s',
+    verified: true,
+    source: ALUVISION_SOURCE,
+  },
+  {
+    id: 'aluvision-hiled55-39',
+    manufacturer: 'Aluvision',
+    series: 'Hi-LED 55',
+    model: 'Hi-LED 55 3.9',
+    pixelPitchMm: 3.88,
+    widthMm: 496, heightMm: 496, depthMm: 62,
+    pixelsX: 128, pixelsY: 128,
+    weightKg: 9.1,
+    powerMaxW: 130, powerAvgW: 43,
+    maxRefreshHz: 3840,
+    greyscaleBits: 16,
+    brightnessNits: 4500,
+    receivingCardId: 'novastar-a5s-plus',
+    verified: true,
+    source: ALUVISION_SOURCE,
+    notes: 'Indoor/outdoor. Deeper tile (62 mm) than the rest of the range.',
+  },
+];
+
+const ROE: CabinetSpec[] = [
+  {
+    id: 'roe-bp2-v2',
+    manufacturer: 'ROE Visual',
+    series: 'Black Pearl',
+    model: 'Black Pearl BP2 V2',
+    pixelPitchMm: 2.84,
+    widthMm: 500, heightMm: 500, depthMm: 90,
+    pixelsX: 176, pixelsY: 176,
+    weightKg: 9.35,
+    powerMaxW: 190, powerAvgW: 95,
+    scanRate: 8,
+    maxRefreshHz: 7680,
+    greyscaleBits: 16,
+    brightnessNits: 1500,
+    verified: true,
+    source: 'ROE Visual BP2 V2 brochure, roevisual.com, rev 2024-02-03',
+    notes:
+      'Broadcast/virtual-production workhorse. An older ROE datasheet quotes 185/92 W; the 2024 brochure used here quotes 190/95 W.',
+  },
+];
+
+const UNILUMIN: CabinetSpec[] = [
+  {
+    id: 'unilumin-upad-iii-26',
+    manufacturer: 'Unilumin',
+    series: 'Upad III',
+    model: 'Upad III 2.6',
+    pixelPitchMm: 2.604,
+    widthMm: 500, heightMm: 500, depthMm: 90.6,
+    pixelsX: 192, pixelsY: 192,
+    weightKg: 9.0,
+    powerMaxW: 120, powerAvgW: 40,
+    maxRefreshHz: 2880,
+    greyscaleBits: 16,
+    brightnessNits: 1000,
+    verified: false,
+    source:
+      'Unilumin Upad III 2.6mm spec sheet (dimensions, pitch, resolution, weight, refresh, greyscale VERIFIED). Power figures NOT verified — see notes.',
+    notes:
+      'POWER IS UNVERIFIED. The LMG cut sheet prints "Power consumption per sq/m (max/avg): 40W/120W", which is both transposed and mislabelled: 120 W/m2 max is implausible for a 1000-nit 2.6 mm tile, and 120 W per 0.25 m2 panel (= 480 W/m2) is the only reading that makes physical sense. Recorded as 120/40 W per panel. Confirm against a Unilumin datasheet before quoting.',
+  },
+];
+
+export const CABINET_LIBRARY: CabinetSpec[] = [
+  ...ABSEN,
+  ...ALUVISION,
+  ...ROE,
+  ...UNILUMIN,
+];
+
+export const MANUFACTURERS = [
+  ...new Set(CABINET_LIBRARY.map((c) => c.manufacturer)),
+].sort();
+
+export function cabinetById(id: string): CabinetSpec | undefined {
+  return CABINET_LIBRARY.find((c) => c.id === id);
+}

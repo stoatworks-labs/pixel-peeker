@@ -1,0 +1,8 @@
+# Cloudflare Pages project config.
+#
+# Pixel Peeker is a fully static SPA — no Worker, no server, no data leaves the
+# browser. `pages_build_output_dir` is all Pages needs; the build command and
+# Node version are set in the Pages dashboard (or by `npm run deploy` below).
+name = "pixel-peeker"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-30"
