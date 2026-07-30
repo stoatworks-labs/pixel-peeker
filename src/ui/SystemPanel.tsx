@@ -107,18 +107,15 @@ function WiringSection() {
           </select>
         </div>
       </div>
-      <div className="row">
-        <div className="field" style={{ flex: 1 }}>
-          <label>Fill to</label>
-          <input
-            type="number"
-            min={10}
-            max={100}
-            value={Math.round(fillTo * 100)}
-            onChange={(e) => setFillTo(Number(e.target.value) / 100)}
-          />
-          <span style={{ color: 'var(--muted)' }}>%</span>
-        </div>
+      <div className="field">
+        <label>Fill to (%)</label>
+        <input
+          type="number"
+          min={10}
+          max={100}
+          value={Math.round(fillTo * 100)}
+          onChange={(e) => setFillTo(Number(e.target.value) / 100)}
+        />
       </div>
       <div className="row" style={{ marginTop: 8 }}>
         <button
