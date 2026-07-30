@@ -7,12 +7,8 @@ import { useProcessorSpecs, useStore } from '../state/store';
 import { chainColour, DEFAULT_AUTOWIRE, type WirePattern } from '../domain/wiring';
 import { buildPixelMap } from '../domain/pixelmap';
 import { buildResolumeXml, buildSliceCsv } from '../export/resolume';
-import {
-  buildCabinetScheduleCsv,
-  buildInterchange,
-  buildLctBrief,
-} from '../export/novastar';
 import { driveCheck } from '../domain/capacity';
+import { NOVASTAR_EXPORTS } from '../config/features';
 
 export function SystemPanel() {
   return (
@@ -342,45 +338,60 @@ function ExportSection() {
         is the same geometry as a plain table.
       </div>
 
-      <div className="row" style={{ marginTop: 8 }}>
-        <button
-          style={{ flex: 1 }}
-          disabled={empty}
-          onClick={() =>
-            download(`${slug}-cabinet-schedule.csv`, buildCabinetScheduleCsv(map), 'text/csv')
-          }
-        >
-          Cabinet schedule
-        </button>
-      </div>
-      <div className="row" style={{ marginTop: 6 }}>
-        <button
-          style={{ flex: 1 }}
-          disabled={empty}
-          onClick={() =>
-            download(`${slug}-config-brief.txt`, buildLctBrief(project, map, loads), 'text/plain')
-          }
-        >
-          LCT / VMP brief
-        </button>
-        <button
-          disabled={empty}
-          onClick={() =>
-            download(
-              `${slug}-interchange.json`,
-              JSON.stringify(buildInterchange(project, map, loads), null, 2),
-              'application/json',
-            )
-          }
-        >
-          JSON
-        </button>
-      </div>
-      <div className="note">
-        LCT <code>.scr</code> and VMP project files are proprietary and partly binary,
-        so Pixel Peeker does not fabricate them. These carry the same information in a
-        form you can type in or script against.
-      </div>
+      {NOVASTAR_EXPORTS && (
+        <>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button
+              style={{ flex: 1 }}
+              disabled={empty}
+              onClick={async () => {
+                const { buildCabinetScheduleCsv } = await import('../export/novastar');
+                download(
+                  `${slug}-cabinet-schedule.csv`,
+                  buildCabinetScheduleCsv(map),
+                  'text/csv',
+                );
+              }}
+            >
+              Cabinet schedule
+            </button>
+          </div>
+          <div className="row" style={{ marginTop: 6 }}>
+            <button
+              style={{ flex: 1 }}
+              disabled={empty}
+              onClick={async () => {
+                const { buildLctBrief } = await import('../export/novastar');
+                download(
+                  `${slug}-config-brief.txt`,
+                  buildLctBrief(project, map, loads),
+                  'text/plain',
+                );
+              }}
+            >
+              LCT / VMP brief
+            </button>
+            <button
+              disabled={empty}
+              onClick={async () => {
+                const { buildInterchange } = await import('../export/novastar');
+                download(
+                  `${slug}-interchange.json`,
+                  JSON.stringify(buildInterchange(project, map, loads), null, 2),
+                  'application/json',
+                );
+              }}
+            >
+              JSON
+            </button>
+          </div>
+          <div className="note">
+            LCT <code>.scr</code> and VMP project files are proprietary, so Pixel Peeker
+            does not fabricate them. These carry the same information in a form you can
+            type in or script against.
+          </div>
+        </>
+      )}
 
       <div className="row" style={{ marginTop: 10 }}>
         <button

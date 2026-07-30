@@ -123,6 +123,26 @@ The remaining honest gap: the schema is verified, but Pixel Peeker's particular
 arrangement (many slices in one screen, one screen per processor) has not itself been
 loaded into a running Arena.
 
+### 4.5 The lite build flag
+
+`src/config/features.ts` exports `NOVASTAR_EXPORTS`, a build-time constant. `npm run
+build:lite` reads `.env.lite` and produces a variant without the NovaStar exports.
+
+Two traps here, both hit for real:
+
+1. **The flag must stay a bare top-level `const` boolean.** It was first written as a
+   property on a `FEATURES` object; Rollup would not inline a property read across the
+   module boundary, so the guarded JSX stayed in the bundle.
+2. **The flag alone is not enough.** Rollup fixes chunk boundaries from the module graph
+   before dead-code elimination, so it still emitted an orphaned `novastar-*.js` chunk.
+   `vite.config.ts` resolves the module to a stub in `lite` mode so it never enters the
+   graph.
+
+`scripts/check-lite.mjs` asserts both — it runs as part of `build:lite` and fails the
+build if NovaStar strings survive, or if the PDF/Resolume/save paths were stripped by
+mistake. **A feature flag you cannot see failing is worse than no feature flag.** When
+the VMP format is unblocked, delete the flag rather than leaving it lying around.
+
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**

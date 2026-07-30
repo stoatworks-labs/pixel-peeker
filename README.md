@@ -118,11 +118,19 @@ database is a protected work in its own right under UK/EU database right.
   arrangement has not itself been loaded into a running Arena, and Resolume change the
   format between releases. A slice CSV with identical geometry ships alongside as a
   no-risk fallback.
-- **NovaStar LCT `.scr` and VMP project files** — **not generated, by choice.** They are
-  proprietary and partly binary. Guessing at the container produces a file that either
-  fails to load or, worse, loads with a subtly wrong map — which on site is far more
-  damaging than no file at all. The cabinet schedule and the config brief carry the same
-  information in a form you can type in or script against.
+- **NovaStar LCT `.scr`** — genuinely proprietary and partly binary. Not generated.
+- **NovaStar VMP `.nprj`** — **not generated yet, but no longer a dead end.** A `.nprj`
+  turns out to be a zip of per-device zips of plain JSON, and `cabinetID` is a derivable
+  packed field rather than an opaque handle. The container, manifest and geometry are all
+  mapped in [`docs/novastar-vmp-format.md`](docs/novastar-vmp-format.md), written from a
+  real VMP V1.5.1 export. One thing blocks a writer, and it is a gap in the sample rather
+  than the format: every cabinet sat on a single Ethernet port, so `connectID` cannot be
+  told apart from a port index and nothing else in the tree names a port. That doc states
+  the experiment that settles it. Guessing would produce a file that loads and looks right
+  but drives the wrong cabinets — far more damaging on site than no file at all.
+
+  In the meantime the cabinet schedule and config brief carry the same information in a
+  form you can type in or script against.
 
 ## Develop
 
@@ -138,12 +146,34 @@ npm run dev
 npm test
 ```
 
+## Two builds
+
+The **full** build has everything described above. The **lite** build drops the NovaStar
+exports (cabinet schedule, LCT/VMP brief, JSON interchange) and ships just the design
+tool, the PDF report and the Resolume export — the parts with no caveats attached.
+
+```bash
+npm run build        # full  -> dist/
+```
+
+```bash
+npm run build:lite   # lite  -> dist-lite/
+```
+
+`build:lite` runs `scripts/check-lite.mjs`, which fails the build if the NovaStar code
+is still in the bundle. That check exists because the first attempt at the flag silently
+did not strip anything and the build log looked identical either way.
+
 ## Deploy to Cloudflare Pages
 
 Static SPA — no Worker, nothing server-side.
 
 ```bash
 npm run deploy
+```
+
+```bash
+npm run deploy:lite
 ```
 
 Or connect the repo in the Pages dashboard with build command `npm run build` and
