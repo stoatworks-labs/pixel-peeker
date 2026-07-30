@@ -1,0 +1,11 @@
+# Cloudflare Pages config for the LITE variant.
+#
+# Separate from wrangler.toml so the two projects cannot collide: each file names one
+# project and one output directory, and `npm run deploy:lite` passes this one with -c.
+# Sharing a single config and overriding --project-name invites deploying the wrong
+# build to the wrong project.
+#
+# See README "Two builds". Build with `npm run build:lite` (writes dist-lite/).
+name = "pixel-peeker-lite"
+pages_build_output_dir = "dist-lite"
+compatibility_date = "2026-07-30"

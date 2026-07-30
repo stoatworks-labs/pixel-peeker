@@ -12,7 +12,7 @@
     "typecheck": "tsc -b",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=pixel-peeker",
     "build:lite": "tsc -b && vite build --mode lite --outDir dist-lite && node scripts/check-lite.mjs",
-    "deploy:lite": "npm run build:lite && npx wrangler pages deploy dist-lite --project-name=pixel-peeker-lite"
+    "deploy:lite": "npm run build:lite && npx wrangler pages deploy dist-lite -c wrangler.lite.toml --project-name=pixel-peeker-lite"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
