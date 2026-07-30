@@ -1,5 +1,15 @@
 # Pixel Peeker
 
+> **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code)
+> (Anthropic), directed and reviewed by a human author. The capacity model is verified
+> numerically: it reproduces NovaStar's three published MX40 Pro per-port figures to the
+> pixel and Brompton's published SX40 headline, and those are pinned as tests. The
+> cabinet library was parsed from manufacturer datasheet PDFs, each record carrying its
+> source. The Resolume export uses a schema read off real Arena 7.27.0 files. It has
+> **not** been used to design a wall that was then built; no processor, receiving card
+> or panel has been connected to it, and the Resolume file has not been opened in a
+> running Arena.
+
 A browser tool for designing LED video walls: lay out cabinets on a canvas, add
 processors, wire the ports, and find out whether it actually fits — before you find
 out on site.
