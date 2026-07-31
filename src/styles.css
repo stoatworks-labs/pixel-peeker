@@ -14,12 +14,23 @@
   --err: #f85149;
   --radius: 6px;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* Read by the vendored support footer, which otherwise inherits page colour. */
+  --sw-support-accent: var(--accent);
 }
 
 * { box-sizing: border-box; }
 
+/*
+ * The tool still fills the viewport exactly (see `.app` below) — but the page
+ * itself is allowed to scroll past it, because the support footer is appended
+ * after #root and `overflow: hidden` here made it unreachable. Height moved off
+ * html/body/#root and onto `.app` as 100vh: leaving `height: 100%` here while
+ * body grew past the viewport left `.app`'s percentage height resolving against
+ * an auto-height parent, which collapsed the 1fr row and let the side panels
+ * grow without bound instead of scrolling inside themselves.
+ */
 html, body, #root {
-  height: 100%;
   margin: 0;
 }
 
@@ -27,7 +38,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 button {
@@ -65,7 +76,7 @@ input[type="number"] { font-family: var(--mono); }
 .app {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 100%;
+  height: 100vh;
 }
 
 .topbar {
