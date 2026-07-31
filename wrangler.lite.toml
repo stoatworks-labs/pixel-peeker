@@ -16,3 +16,8 @@ compatibility_date = "2026-07-30"
 
 [assets]
 directory = "./dist-lite"
+# SPA routing. The Pages idiom for this is a `/*  /index.html  200` line in
+# `_redirects`, and the assets runtime rejects it outright — it reads the rule as
+# a loop ("would strip `/index` and trigger this rule again") and fails the whole
+# deploy, not just that route. `not_found_handling` is the Worker form.
+not_found_handling = "single-page-application"

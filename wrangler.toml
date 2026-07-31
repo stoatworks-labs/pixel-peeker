@@ -16,11 +16,14 @@
 #   Build command: npm ci && npm run build
 #   Deploy command: npx wrangler deploy
 #
-# `public/_headers` and `public/_redirects` are copied into dist/ by Vite and are
-# honoured by the assets runtime. `_redirects` is what makes the SPA's client-side
-# routes resolve instead of 404ing.
+# `public/_headers` is copied into dist/ by Vite and is honoured by the assets
+# runtime. There is deliberately no `_redirects`: the Pages way to route an SPA is
+# a `/*  /index.html  200` line there, and the assets runtime rejects it as an
+# infinite loop and fails the entire deploy. `not_found_handling` below is the
+# Worker equivalent.
 name = "pixel-peeker"
 compatibility_date = "2026-07-30"
 
 [assets]
 directory = "./dist"
+not_found_handling = "single-page-application"
