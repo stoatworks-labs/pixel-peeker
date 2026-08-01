@@ -21,6 +21,13 @@ Cloudflare as a static site.
 cabinet library is small; one export format is unverified. See below — the honesty is
 the point.
 
+![Pixel Peeker — a 144-cabinet wall auto-wired across eleven ports of a NovaStar MX40
+Pro, with the port-loading table alongside](docs/screenshots/pixel-peeker.png)
+
+*An 8 m × 4.5 m wall of Absen PL2.5 XR V2: 144 cabinets, 3200×1800, 26.6 kW peak,
+serpentine-wired to 90% fill. The MX40 Pro carries it on 11 of 20 ports at 64% device
+load — each colour on the canvas is one port.*
+
 ## What it does
 
 - **Lay out a wall.** Pick a cabinet from the library or define a custom panel by
