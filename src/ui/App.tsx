@@ -146,6 +146,11 @@ export function App() {
           <button onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
             ↷
           </button>
+          {/* Opens the shared About dialog — see public/about.js, which delegates
+              this attribute from the document, so nothing needs importing here. */}
+          <button type="button" data-stoatworks-about>
+            About
+          </button>
         </div>
       </div>
 
