@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 import react from '@vitejs/plugin-react';
 
 /**
@@ -35,5 +38,9 @@ function stripNovaStarExports(): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
+  // The About dialog shows the version the build actually produced. about-data.js
+  // carries one baked at sync time as a fallback, and it goes stale the moment a
+  // release is tagged; this is the one that is always right.
+  define: { __APP_VERSION__: JSON.stringify(`v${pkg.version}`) },
   plugins: [react(), ...(mode === 'lite' ? [stripNovaStarExports()] : [])],
 }));
