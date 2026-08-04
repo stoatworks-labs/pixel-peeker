@@ -201,6 +201,10 @@ npm run deploy:lite  # lite
 already in place. `_redirects` is what makes the client-side routes resolve rather
 than 404.
 
+<!-- attributions:start -->
+This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+<!-- attributions:end -->
+
 ## Licence
 
 MIT.
