@@ -83,8 +83,15 @@ interface State {
   setMeta: (m: Partial<Pick<Project, 'name' | 'client' | 'venue' | 'designer' | 'notes'>>) => void;
 
   addGrid: (specId: string, cols: number, rows: number, xMm?: number, yMm?: number) => void;
-  addCabinetAt: (specId: string, xMm: number, yMm: number) => void;
-  moveCabinets: (ids: string[], dxMm: number, dyMm: number) => void;
+  /**
+   * Place one cabinet and return its id, or null if the spec is unknown.
+   *
+   * `snapToGrid` is the legacy behaviour — round to the canvas grid on the way in.
+   * Pass false when the position has already been resolved against the other cabinets
+   * (see `domain/snapping`), because re-rounding it would undo the alignment.
+   */
+  addCabinetAt: (specId: string, xMm: number, yMm: number, snapToGrid?: boolean) => string | null;
+  moveCabinets: (ids: string[], dxMm: number, dyMm: number, snapToGrid?: boolean) => void;
   deleteCabinets: (ids: string[]) => void;
   fillCanvas: (specId: string) => void;
 
@@ -213,26 +220,31 @@ export const useStore = create<State>((set, get) => {
         );
       }),
 
-    addCabinetAt: (specId, xMm, yMm) =>
+    addCabinetAt: (specId, xMm, yMm, snapToGrid = true) => {
+      const spec = cabinetSpec(specId);
+      if (!spec) return null;
+      // Minted outside the commit so it can be returned — the caller usually wants to
+      // select what it just placed.
+      const id = nextId('cab');
       commit((d) => {
-        const spec = cabinetSpec(specId);
-        if (!spec) return;
         d.cabinets.push({
-          id: nextId('cab'),
+          id,
           specId,
-          xMm: snap(xMm, d.canvas.snapMm || spec.widthMm),
-          yMm: snap(yMm, d.canvas.snapMm || spec.heightMm),
+          xMm: snapToGrid ? snap(xMm, d.canvas.snapMm || spec.widthMm) : xMm,
+          yMm: snapToGrid ? snap(yMm, d.canvas.snapMm || spec.heightMm) : yMm,
           rotation: 0,
         });
-      }),
+      });
+      return id;
+    },
 
-    moveCabinets: (ids, dxMm, dyMm) =>
+    moveCabinets: (ids, dxMm, dyMm, snapToGrid = true) =>
       commit((d) => {
         const set_ = new Set(ids);
         for (const c of d.cabinets) {
           if (set_.has(c.id)) {
-            c.xMm = snap(c.xMm + dxMm, d.canvas.snapMm);
-            c.yMm = snap(c.yMm + dyMm, d.canvas.snapMm);
+            c.xMm = snapToGrid ? snap(c.xMm + dxMm, d.canvas.snapMm) : c.xMm + dxMm;
+            c.yMm = snapToGrid ? snap(c.yMm + dyMm, d.canvas.snapMm) : c.yMm + dyMm;
           }
         }
       }),

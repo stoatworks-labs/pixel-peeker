@@ -24,6 +24,7 @@ src/
     types.ts       Data shapes + the provenance contract
     capacity.ts    THE IMPORTANT FILE — port/device capacity + refresh feasibility
     wall.ts        Geometry, derived physical figures, layout validation
+    snapping.ts    Placement snapping, 45° drag constraint, adjacent-slot search
     wiring.ts      Port loading, wiring validation, auto-wire
     pixelmap.ts    Shared pixel-space map that every export builds on
   data/         The library. Facts from datasheets, each with a provenance flag.
@@ -144,6 +145,32 @@ build if NovaStar strings survive, or if the PDF/Resolume/save paths were stripp
 mistake. **A feature flag you cannot see failing is worse than no feature flag.** When
 the VMP format is unblocked, delete the flag rather than leaving it lying around.
 
+### 4.6 Snapping is geometry, and it lives in `domain/`
+
+`src/domain/snapping.ts` decides where a cabinet lands: alignment against the cabinets
+already on the wall, the 45° drag lock, and the adjacent-slot search behind the arrow
+keys. `WallCanvas` converts pointer events to millimetres and draws the result; it does
+not do the arithmetic. Four things that are decisions rather than accidents:
+
+1. **Alignment beats the grid, and abutting beats both.** Candidate positions come from
+   pairing the moving cabinet's edges with every static cabinet's edges, so "flush
+   against that one" falls out of the same mechanism as "lined up with that one". The
+   canvas `snapMm` grid is only the fallback for an axis that found no alignment.
+2. **Tolerance is a screen distance, converted to millimetres by the caller.** Ten
+   screen pixels at the current zoom. A fixed millimetre tolerance would be unusable at
+   one end of the zoom range or the other.
+3. **A constrained drag restricts snapping to the axis it is free on.** Snapping across
+   a 45° lock would silently break the lock. On a diagonal there is no free axis, so
+   alignment is off entirely.
+4. **The 45° lock quantises distance along the lock, not x and y separately.** Rounding
+   the two components independently pulls a diagonal off 45° by up to half a grid step
+   each. Quantising the distance keeps the components equal, so the drag stays exactly
+   diagonal *and* lands on whole grid units — which matters because a diagonal drag is
+   the one path where alignment snapping is off and nothing else would round it.
+
+Drag commits once, on release, not per pointer-move: one undo step per drag, and no
+`structuredClone` of the project at 60 Hz.
+
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**
@@ -152,7 +179,8 @@ the VMP format is unblocked, delete the flag rather than leaving it lying around
 - Wall geometry, stats, layout validation
 - Auto-wire (serpentine/column/row) with fill limits, and wiring validation
 - Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests)
-- Canvas: place, marquee-select, nudge, delete, pan/zoom, undo/redo
+- Canvas: place, drag-move, marquee-select, nudge, delete, pan/zoom, undo/redo
+- Snapping, 45° drag constraint and arrow-key wall growth (22 tests) — see 4.6
 - Cloudflare Worker (static-assets) config, lazy-loaded PDF bundle
 
 **Scaffolding / known gaps:**

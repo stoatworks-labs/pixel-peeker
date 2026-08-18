@@ -32,6 +32,8 @@ load — each colour on the canvas is one port.*
 
 - **Lay out a wall.** Pick a cabinet from the library or define a custom panel by
   resolution and receiving card. Fill a canvas, build blocks, or place tiles by hand.
+  New and dragged cabinets snap flush against the ones already up, arrow keys extend a
+  run one cabinet at a time, and holding Shift locks a drag to 45°.
 - **Add processing.** NovaStar and Brompton controllers with their real port counts,
   input connectors and device capacity limits.
 - **Wire it up.** Auto-wire in serpentine or column order to a chosen fill limit, or
