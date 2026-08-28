@@ -63,15 +63,28 @@ you have put it somewhere the test config does not `include`.
 `src/domain/capacity.ts` is the heart of the app. Two rules:
 
 1. **Pixels are packed into power-of-two containers** — 8-bit → 24 bits/px, 10-bit → 32,
-   12-bit → 48. Not `3 × bitDepth`. This is derived from NovaStar's published figures,
-   not assumed.
-2. **Link efficiency is 0.9500 for NovaStar**, which reproduces all three of their
-   published MX40 Pro per-port numbers to the pixel. Brompton is calibrated separately
+   12-bit → 48. Not `3 × bitDepth`.
+2. **Link efficiency is 0.9500 for NovaStar COEX.** Brompton is calibrated separately
    from their own headline figure.
 
-`capacity.test.ts` pins these against the published numbers. **If those tests fail, fix
-the model — do not relax the test.** They are the only thing standing between this app
-and a plausible-looking spreadsheet that is quietly wrong.
+Both of those were originally *derived* from NovaStar's three published MX40 Pro
+per-port numbers. They are no longer derived: the MX20, MX30, MX2000 Pro and MX6000 Pro
+specifications print the formula itself — `Load capacity × 24 × Frame rate < 1e9 × 0.95`
+and the same with 32 and 48 bits. The vendor states both constants.
+
+Two paths deliberately do **not** use them, and each is calibrated from its own
+datasheet — do not "unify" them:
+
+- **`container-legacy` at 0.936** — the pre-COEX MCTRL generation (MCTRL4K, MCTRL660,
+  MCTRL660 PRO). No 32-bit path, so 10-bit costs the full 48 bits. Over-determined by
+  the MCTRL660 PRO, which publishes both figures at exactly 2:1.
+- **`naive` at 0.746496** — the 5G fibre solution on the MX2000/MX6000 Pro
+  (`CX_1x40G_Fiber` + CVT8-5G). Packs at 24/30/36 bits, the opposite of the gigabit
+  path. NovaStar's own prose contradicts their table here; the table wins.
+
+`capacity.test.ts` pins all of this against the published numbers. **If those tests
+fail, fix the model — do not relax the test.** They are the only thing standing between
+this app and a plausible-looking spreadsheet that is quietly wrong.
 
 ### 4.2 Link bandwidth and drive capability are different things
 
@@ -187,6 +200,12 @@ Drag commits once, on release, not per pointer-move: one undo step per drag, and
 - **Cabinet library is small** — 20 models. The schema and importer path matter more
   than the count, but it needs filling out from datasheets.
 - **Receiving card limits are placeholders**, all `verified: false`.
+- **The receiving card's effect on 10-bit wire cost is not modelled.** On COEX
+  controllers the card decides whether 10-bit costs 32 bits or 48 — 494,791 px/port
+  against 329,861, a 50% difference — and only the A10s Pro gets the 32. `container`
+  assumes A10s Pro for every card, so a wall on A8s cards is shown too much 10-bit
+  capacity. Fixing it means threading the receiver into `portCapacity`, which is
+  called from `wiring.ts` and `export/novastar.ts` with only the port in scope.
 - **Resolume XML** uses a verified schema but this app's slice arrangement has not been
   opened in a running Arena.
 - **No manual port patching UI** — you can auto-wire or clear, but not drag a cabinet

@@ -119,7 +119,7 @@ export interface PortSpec {
    */
   efficiency?: number;
   /** How pixels are packed onto the wire. See `wireBitsPerPixel` in capacity.ts. */
-  packing?: 'container' | 'naive';
+  packing?: 'container' | 'container-legacy' | 'naive';
   /**
    * Some vendors present one physical port as N independent fixture links —
    * a Brompton 10G trunk is ten 1G connections. Informational: capacity is still
@@ -151,6 +151,21 @@ export interface ProcessorSpec extends Provenance {
   totalCapacityPx?: number;
   referenceBitDepth?: BitDepth;
   referenceFrameRateHz?: number;
+  /**
+   * A FIXED pixel ceiling that does not move with bit depth or frame rate — unlike
+   * `totalCapacityPx`, which is a bandwidth figure quoted at a reference format and is
+   * scaled from it.
+   *
+   * This is the video pipeline's canvas, not its bandwidth. A send-only controller like
+   * the MCTRL4K maps the input canvas to the wall pixel-for-pixel, so a 4096x2160 input
+   * is 8.85 Mpx whether it arrives at 8-bit or 12-bit; feeding it deeper colour costs
+   * link bandwidth and nothing else. Scaling that ceiling by wire cost would understate
+   * the device at 10/12-bit by the same factor it correctly derates the ports.
+   *
+   * Undefined for the COEX all-in-one boxes and for Brompton: those scale and compose
+   * layers, so their wall can be considerably larger than any one input.
+   */
+  maxCanvasPx?: number;
   /** How the device does backup. `port-pair` = ports pair up as main/backup. */
   redundancy: 'none' | 'port-pair' | 'device';
   notes?: string;

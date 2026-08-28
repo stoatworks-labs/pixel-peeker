@@ -37,13 +37,33 @@ import type {
  *   10-bit -> 10+10+10 packed into 32 bits/px   (not 30)
  *   12-bit -> 12+12+12 packed into 48 bits/px   (not 36)
  *
- * VERIFICATION: NovaStar publish three per-port figures for the MX40 Pro at 60 Hz —
- * 659,722 px at 8-bit, 494,791 px at 10-bit and 329,861 px at 10/12-bit. With the
- * containers above, ONE efficiency constant of exactly 0.9500 reproduces all three
- * to the pixel. With naive 3 x bitDepth packing no single constant fits. The published
- * ratios (1.00 / 0.75 / 0.50) are exactly 24/24, 24/32 and 24/48.
+ * VERIFICATION: this was originally derived from NovaStar's three published MX40 Pro
+ * per-port figures at 60 Hz — 659,722 px at 8-bit, 494,791 px at 10-bit and 329,861 px
+ * at 10/12-bit — which ONE efficiency constant of exactly 0.9500 reproduces to the
+ * pixel with the containers above, and which naive 3 x bitDepth packing fits with no
+ * constant at all.
+ *
+ * It is no longer a derivation. The MX20, MX30, MX2000 Pro and MX6000 Pro
+ * specifications print the formula itself:
+ *
+ *    8bit:  Load capacity x 24 x Frame rate < 1000 x 1000 x 1000 x 0.95
+ *   10bit:  Load capacity x 32 x Frame rate < 1000 x 1000 x 1000 x 0.95
+ *   12bit:  Load capacity x 48 x Frame rate < 1000 x 1000 x 1000 x 0.95
+ *
+ * Both constants, stated by the vendor. Nothing here is inferred any more.
+ *
+ * The same tables also show the 32-bit 10-bit container is a RECEIVING CARD property,
+ * not a controller one: NovaStar publish a second table headed "When Working with Other
+ * Armor Series Receiving Cards" in which 10-bit costs 48 bits and the per-port figure
+ * drops from 494,791 to 329,861. `container` here is therefore the A10s Pro case. See
+ * the known gap noted in `receiverCheck`.
+ *
+ * `container-legacy` is the pre-COEX MCTRL generation, which has no 32-bit path at all:
+ * 10-bit costs the full 48 bits whatever card is on the other end. The MCTRL660 PRO
+ * datasheet states both of its figures, and they are exactly 2:1 — 650,000 px at 8-bit
+ * and 325,000 px at 10/12-bit — which is 24 vs 48 bits and cannot be 24 vs 32.
  */
-export type PixelPacking = 'container' | 'naive';
+export type PixelPacking = 'container' | 'container-legacy' | 'naive';
 
 export function wireBitsPerPixel(
   bitDepth: BitDepth,
@@ -51,6 +71,7 @@ export function wireBitsPerPixel(
 ): number {
   if (packing === 'naive') return 3 * bitDepth;
   if (bitDepth <= 8) return 24;
+  if (packing === 'container-legacy') return 48;
   if (bitDepth <= 10) return 32;
   return 48;
 }
@@ -102,10 +123,16 @@ export function portCapacity(port: PortSpec, signal: SignalFormat): PortCapacity
  * the actual signal by wire cost. The device cap is frequently *lower* than the sum of
  * the ports and is then the real limit — the MX40 Pro has 20 gigabit ports that could
  * carry 13.2 Mpx between them but the box is rated 9 Mpx.
+ *
+ * `maxCanvasPx` is the third limit and the one that does NOT scale: it is the video
+ * pipeline's canvas rather than its bandwidth, so it stays put while the other two
+ * derate. On the send-only MCTRL boxes it is the limit at 8-bit and the ports take over
+ * at 10/12-bit. See the field comment on `ProcessorSpec`.
  */
 export function processorCapacity(spec: ProcessorSpec, signal: SignalFormat): number {
   const portSum = spec.ports.reduce((n, p) => n + portCapacity(p, signal).capacityPx, 0);
-  if (spec.totalCapacityPx == null) return portSum;
+  const canvasCap = spec.maxCanvasPx ?? Infinity;
+  if (spec.totalCapacityPx == null) return Math.min(portSum, canvasCap);
 
   const refBits = wireBitsPerPixel(spec.referenceBitDepth ?? 8, spec.ports[0]?.packing);
   const refFps = spec.referenceFrameRateHz ?? 60;
@@ -113,7 +140,7 @@ export function processorCapacity(spec: ProcessorSpec, signal: SignalFormat): nu
   const scaled = Math.floor(
     (spec.totalCapacityPx * refBits * refFps) / nowBits / signal.frameRateHz,
   );
-  return Math.min(portSum, scaled);
+  return Math.min(portSum, scaled, canvasCap);
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +204,17 @@ export function driveCheck(
   };
 }
 
-/** Does one cabinet exceed what its receiving card can address? */
+/**
+ * Does one cabinet exceed what its receiving card can address?
+ *
+ * KNOWN GAP: on the COEX controllers the receiving card also decides the 10-bit wire
+ * cost — 32 bits with an A10s Pro, 48 bits with any other Armor card, which is the
+ * difference between 494,791 px and 329,861 px per gigabit port at 60 Hz. `container`
+ * packing models the A10s Pro case for every card, so a wall built on A8s cards is
+ * currently shown 50% more 10-bit port capacity than it has. Closing this means
+ * threading the receiver into `portCapacity`, which today is called from `wiring.ts`
+ * and `export/novastar.ts` with only the port in scope.
+ */
 export function receiverCheck(
   spec: CabinetSpec,
   receiver: ReceivingCardSpec | undefined,
