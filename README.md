@@ -203,6 +203,38 @@ npm run deploy:lite  # lite
 already in place. `_redirects` is what makes the client-side routes resolve rather
 than 404.
 
+<!-- selfhost:start -->
+## Run your own copy
+
+Pixel Peeker is a static page, so hosting it yourself is one container serving
+the built files — the same files the hosted copy serves, running somewhere that
+still works when the venue has no internet.
+
+**Docker.** The image is built by this repo's `docker.yml` workflow on every
+push and published as `ghcr.io/stoatworks-labs/pixel-peeker`:
+
+```bash
+docker run -d --name pixel-peeker --restart unless-stopped -p 8526:80 ghcr.io/stoatworks-labs/pixel-peeker:latest
+```
+
+Or `docker compose up -d` with the [`docker-compose.yml`](docker-compose.yml)
+in this repo, which maps the same port. Either way it is then at
+`http://localhost:8526/`.
+
+A second image, `ghcr.io/stoatworks-labs/pixel-peeker-lite` (Pixel Peeker without the NovaStar export path), is built from the same repo.
+
+**Unraid.** Search Community Applications for *Pixel Peeker* — the template is
+[`templates/pixel-peeker.xml`](https://github.com/stoatworks-labs/stoatworks-unraid/blob/main/templates/pixel-peeker.xml)
+in [stoatworks-unraid](https://github.com/stoatworks-labs/stoatworks-unraid), which is what the CA feed reads.
+
+**Stoatworks Burrow** lists it under *Self-hosted*, with the compose file a
+click away.
+
+The `Dockerfile`, `docker-compose.yml`, `docker/` and the workflow are
+generated from `fleet.json` in stoatworks-unraid. Change them there and
+regenerate rather than editing them here.
+<!-- selfhost:end -->
+
 <!-- attributions:start -->
 This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 <!-- attributions:end -->
