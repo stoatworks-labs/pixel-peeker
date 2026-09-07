@@ -13,3 +13,7 @@ node_modules
 /dist
 /dist-lite
 /out
+
+# The desktop tray app (gen-launcher.mjs). Its Rust target dir alone would
+# be gigabytes, and none of it is served.
+/launcher
