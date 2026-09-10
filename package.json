@@ -29,7 +29,7 @@
     "oxlint": "^1.80.0",
     "typescript": "~7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "wrangler": "^4.127.1"
   },
   "description": "Design LED video walls: cabinet layout, processor patching, and port capacity calculated against published manufacturer figures.",
