@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { portCapacity, processorCapacity, wireBitsPerPixel } from './capacity';
-import { processorById } from '../data/processors';
+import { processorById, receiverById } from '../data/processors';
 import type { PortSpec, SignalFormat } from './types';
 
 const at60 = (bitDepth: 8 | 10 | 12): SignalFormat => ({
@@ -108,42 +108,62 @@ describe('NovaStar COEX published device capacity', () => {
   });
 });
 
-describe('NovaStar 5G fibre solution (CX_1x40G_Fiber output card)', () => {
-  // Source: MX2000 Pro / MX6000 Pro Specifications V1.1.1, "5G Solution" load table.
-  // The 5G path packs pixels NAIVELY at 24/30/36 bits — the opposite of the gigabit
-  // path — and runs at a different efficiency. Both come from the published table.
+describe('NovaStar 5G solution (CX40 Pro; CX_1x40G_Fiber / MX_8x5G_Base-T output cards)', () => {
+  // Source: CX40 Pro, MX2000 Pro and MX6000 Pro Specifications V1.5.1 (2026-04-30),
+  // "Ethernet Port Load Capacity" for the 5G solution. Containers again, at 0.85 — and
+  // 0.88 at 10-bit, the one per-depth constant any vendor prints. The table, not the
+  // prose, is what is pinned: see nova5GPort in the processor library for the rounding.
+  const port = processorById('novastar-cx40-pro')!.ports[0];
   const trunk = processorById('novastar-mx6000-pro-5g')!.ports[0];
 
   it.each([
-    [8, 2_592_000],
-    [12, 1_728_000],
-  ] as const)('matches the published per-5G-link figure at %i-bit', (depth, published) => {
-    expect(portCapacity(trunk, at60(depth)).capacityPx / (trunk.subLinks ?? 1)).toBe(
-      published,
-    );
+    [8, 2_951_200],
+    [10, 2_291_312],
+    [12, 1_475_600],
+  ] as const)('matches the published per-5G-port figure at %i-bit, 60 Hz', (depth, published) => {
+    expect(portCapacity(port, at60(depth)).capacityPx).toBe(published);
   });
 
-  it('reproduces the published 24 Hz, 30 Hz and 240 Hz rows too', () => {
-    expect(perLink(24, 8)).toBe(6_480_000);
-    expect(perLink(30, 12)).toBe(3_456_000);
-    expect(perLink(240, 12)).toBe(432_000);
+  it('reproduces the 24 Hz and 240 Hz rows of all three columns', () => {
+    expect(perPort(24, 8)).toBe(7_378_000);
+    expect(perPort(24, 10)).toBe(5_728_280);
+    expect(perPort(24, 12)).toBe(3_689_000);
+    expect(perPort(240, 8)).toBe(737_800);
+    expect(perPort(240, 10)).toBe(572_828);
+    expect(perPort(240, 12)).toBe(368_900);
   });
 
-  it('is 0.03% above NovaStar’s 10-bit column, which is theirs to reconcile', () => {
-    // The 8-bit and 12-bit columns agree exactly on 3,732,480,000 bps of payload. The
-    // 10-bit column does not: every cell in it is that figure rounded down at 60 Hz
-    // (2,073,600 -> 2,073,000) and then scaled, so the whole column sits 0.029% low.
-    // Two columns outvote one; the model keeps the constant the other two agree on.
-    expect(perLink(60, 10)).toBe(2_073_600);
-    expect(perLink(30, 10)).toBe(4_147_200);
-    expect(2_073_000 / 2_073_600).toBeCloseTo(0.99971, 5);
+  it('runs the 10-bit column on its own constant, as the formula says', () => {
+    // 8-bit and 12-bit share 4,249,728,000 bps of payload; 10-bit gets 4,399,319,040.
+    expect(portCapacity(port, at60(8)).payloadBps).toBeCloseTo(4_249_728_000, 0);
+    expect(portCapacity(port, at60(12)).payloadBps).toBeCloseTo(4_249_728_000, 0);
+    expect(portCapacity(port, at60(10)).payloadBps).toBeCloseTo(4_399_319_040, 0);
   });
 
-  function perLink(fps: number, bitDepth: 8 | 10 | 12) {
-    return (
-      portCapacity(trunk, { bitDepth, frameRateHz: fps, ledRefreshHz: 3840 }).capacityPx /
-      (trunk.subLinks ?? 1)
-    );
+  it('gives the 40G trunk the load of eight 5G ports, and the published card figure at 12-bit', () => {
+    expect(trunk.subLinks).toBe(8);
+    expect(portCapacity(trunk, at60(8)).capacityPx).toBe(8 * 2_951_200);
+    // "Maximum load of a single output card: 12bit@60Hz: 11,804,800 pixels"
+    expect(portCapacity(trunk, at60(12)).capacityPx).toBe(11_804_800);
+  });
+
+  it('caps the CX40 Pro at 9 Mpx, the same box limit as the MX40 Pro', () => {
+    const cx40 = processorById('novastar-cx40-pro')!;
+    expect(cx40.ports).toHaveLength(6);
+    expect(processorCapacity(cx40, at60(8))).toBe(9_000_000);
+    // The cap is a bandwidth figure quoted at 8-bit, so at 12-bit it derates to 4.5 Mpx —
+    // the same convention as the MX40 Pro — under the 8.85 Mpx the six ports carry.
+    expect(processorCapacity(cx40, at60(12))).toBe(4_500_000);
+  });
+
+  it('caps the KU20 at the 3.9 Mpx headline, like the MX20', () => {
+    const ku20 = processorById('novastar-ku20')!;
+    expect(ku20.ports).toHaveLength(6);
+    expect(processorCapacity(ku20, at60(8))).toBe(3_900_000);
+  });
+
+  function perPort(fps: number, bitDepth: 8 | 10 | 12) {
+    return portCapacity(port, { bitDepth, frameRateHz: fps, ledRefreshHz: 3840 }).capacityPx;
   }
 });
 
@@ -187,23 +207,86 @@ describe('NovaStar MCTRL generation (pre-COEX)', () => {
   });
 });
 
-describe('Brompton Tessera SX40 published capacity', () => {
-  // Source: Brompton SX40 Data Sheet Feb 2025 EN — 9 Mpx at 12-bit 60 Hz over 4x 10G.
+describe('Brompton Tessera published capacity', () => {
+  // Source: Brompton "Tessera Processor Output Port Capacity" (dl.bromptontech.com,
+  // processor version 3.5.2) — the per-port table and the per-SX40 table — plus the
+  // S8 data sheet (Mar 2025), which states the 8-bit port figure independently.
   const sx40 = processorById('brompton-sx40')!;
+  const s8 = processorById('brompton-s8')!;
+  const sq200 = processorById('brompton-sq200')!;
 
-  it('reaches 9 Mpx at 12-bit 60 Hz', () => {
-    expect(processorCapacity(sx40, at60(12))).toBe(9_000_000);
+  it.each([
+    [8, 525_000],
+    [10, 420_000],
+    [12, 350_000],
+  ] as const)('matches the published 1G port figure at %i-bit, 60 Hz', (depth, published) => {
+    expect(portCapacity(s8.ports[0], at60(depth)).capacityPx).toBe(published);
   });
 
-  it('gives 2.25 Mpx per 10G trunk at 12-bit', () => {
-    expect(portCapacity(sx40.ports[0], at60(12)).capacityPx).toBe(2_250_000);
+  it('reproduces the 24 Hz and 120 Hz rows too', () => {
+    const at = (fps: number, bitDepth: 8 | 10 | 12) =>
+      portCapacity(s8.ports[0], { bitDepth, frameRateHz: fps, ledRefreshHz: 3840 }).capacityPx;
+    expect(at(24, 8)).toBe(1_312_500);
+    expect(at(24, 12)).toBe(875_000);
+    expect(at(120, 8)).toBe(262_500);
+    expect(at(120, 10)).toBe(210_000);
   });
 
-  it('gives 225,000 px per 1G sub-link, matching Brompton’s own statement', () => {
+  it('packs naively — 24 : 30 : 36 — which is what the table’s ratios are', () => {
+    const p = s8.ports[0];
+    expect(portCapacity(p, at60(8)).bitsPerPixel).toBe(24);
+    expect(portCapacity(p, at60(10)).bitsPerPixel).toBe(30);
+    expect(portCapacity(p, at60(12)).bitsPerPixel).toBe(36);
+  });
+
+  it('gives a 10G trunk ten 1G links’ worth, as the SX40 data sheet says', () => {
     const trunk = sx40.ports[0];
-    const perSubLink =
-      portCapacity(trunk, at60(12)).capacityPx / (trunk.subLinks ?? 1);
-    expect(perSubLink).toBe(225_000);
+    expect(trunk.subLinks).toBe(10);
+    expect(portCapacity(trunk, at60(12)).capacityPx / 10).toBe(350_000);
+  });
+
+  it('holds the SX40 at 9 Mpx at every bit depth up to 60 Hz — the published table', () => {
+    expect(processorCapacity(sx40, at60(8))).toBe(9_000_000);
+    expect(processorCapacity(sx40, at60(10))).toBe(9_000_000);
+    expect(processorCapacity(sx40, at60(12))).toBe(9_000_000);
+    expect(processorCapacity(sx40, { bitDepth: 8, frameRateHz: 50, ledRefreshHz: 3840 })).toBe(9_000_000);
+  });
+
+  it('derates the SX40 with frame rate above 60 Hz, as published', () => {
+    const at = (fps: number) =>
+      processorCapacity(sx40, { bitDepth: 8, frameRateHz: fps, ledRefreshHz: 3840 });
+    expect(at(72)).toBe(7_500_000);
+    expect(at(120)).toBe(4_500_000);
+    expect(at(250)).toBe(2_160_000);
+  });
+
+  it('lets the S8’s eight ports bind under its 4.5 Mpx cap at 8-bit', () => {
+    expect(s8.ports).toHaveLength(8);
+    expect(processorCapacity(s8, at60(8))).toBe(8 * 525_000);
+    expect(processorCapacity(s8, at60(12))).toBe(8 * 350_000);
+  });
+
+  it('sizes the SQ200’s twelve QD-S trunks to its 36 Mpx licence at 12-bit', () => {
+    expect(sq200.ports).toHaveLength(12);
+    const trunkSum = sq200.ports.reduce((n, p) => n + portCapacity(p, at60(12)).capacityPx, 0);
+    expect(trunkSum).toBe(42_000_000);
+    expect(processorCapacity(sq200, at60(12))).toBe(36_000_000);
+    expect(processorCapacity(sq200, at60(8))).toBe(36_000_000);
+  });
+});
+
+describe('receiving cards', () => {
+  it.each([
+    ['novastar-a10s-pro', 512 * 512],
+    ['novastar-a8s-pro', 512 * 512],
+    ['novastar-a8s', 512 * 384],
+    ['novastar-a5s-plus', 512 * 384],
+    ['novastar-a4s', 256 * 256],
+    ['brompton-r2', 262_144],
+  ] as const)('%s carries its published pixel limit, verified', (id, px) => {
+    const card = receiverById(id)!;
+    expect(card.maxPixels).toBe(px);
+    expect(card.verified).toBe(true);
   });
 });
 

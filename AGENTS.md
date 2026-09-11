@@ -28,6 +28,9 @@ src/
     wiring.ts      Port loading, wiring validation, auto-wire
     pixelmap.ts    Shared pixel-space map that every export builds on
   data/         The library. Facts from datasheets, each with a provenance flag.
+    cabinets/      One module per manufacturer, `index.ts` aggregates; library.test.ts
+                   sanity-checks every record (pitch vs pixels, W/m2 vs W/panel, card ids)
+    processors.ts  Controllers and receiving cards, with the per-vendor calibrations
   export/       PDF, Resolume XML, NovaStar/interchange
   state/        One zustand store: project document + selection + undo
   ui/           React components. Presentation only — no maths in here.
@@ -63,9 +66,10 @@ you have put it somewhere the test config does not `include`.
 `src/domain/capacity.ts` is the heart of the app. Two rules:
 
 1. **Pixels are packed into power-of-two containers** — 8-bit → 24 bits/px, 10-bit → 32,
-   12-bit → 48. Not `3 × bitDepth`.
-2. **Link efficiency is 0.9500 for NovaStar COEX.** Brompton is calibrated separately
-   from their own headline figure.
+   12-bit → 48. Not `3 × bitDepth`. (NovaStar. Brompton, it turns out, do pack at
+   `3 × bitDepth` — see below.)
+2. **Link efficiency is 0.9500 for NovaStar COEX gigabit ports.** Every other link is
+   calibrated separately from its own vendor's published table.
 
 Both of those were originally *derived* from NovaStar's three published MX40 Pro
 per-port numbers. They are no longer derived: the MX20, MX30, MX2000 Pro and MX6000 Pro
@@ -78,9 +82,23 @@ datasheet — do not "unify" them:
 - **`container-legacy` at 0.936** — the pre-COEX MCTRL generation (MCTRL4K, MCTRL660,
   MCTRL660 PRO). No 32-bit path, so 10-bit costs the full 48 bits. Over-determined by
   the MCTRL660 PRO, which publishes both figures at exactly 2:1.
-- **`naive` at 0.746496** — the 5G fibre solution on the MX2000/MX6000 Pro
-  (`CX_1x40G_Fiber` + CVT8-5G). Packs at 24/30/36 bits, the opposite of the gigabit
-  path. NovaStar's own prose contradicts their table here; the table wins.
+- **NovaStar 5G ports at 0.8499456, and 0.879864 at 10-bit** — the CX40 Pro and the
+  5G output cards in the MX2000/MX6000 Pro. Containers, like the gigabit path, but a
+  different constant, and the only place a vendor prints a per-depth constant (their
+  formula says 0.85 / 0.88 / 0.85; the odd decimals are what their own rounding of the
+  24 Hz row leaves, and reproduce the table to the pixel). `PortSpec.efficiencyByDepth`
+  exists for exactly this. HISTORY: the V1.1.1 sheets (2023) rated the same card on
+  naive 24/30/36 packing at 0.7465, and this file used to say so; V1.5.0 (2025-09)
+  re-rated it 14% up at 8-bit and 15% down at 12-bit. The library follows the current
+  sheet. When a NovaStar number looks wrong, check the specification's version first.
+- **Brompton at 0.756, packed NAIVELY** — from Brompton's own "Tessera Processor Output
+  Port Capacity" table: 525,000 / 420,000 / 350,000 px per gigabit output at 8/10/12-bit
+  and 60 Hz, which is 24 : 30 : 36 bits at one constant. The processor cap is a
+  different shape again — 9 Mpx on an SX40 at every bit depth up to 60 Hz, then
+  ∝ 1/frameRate — and `ProcessorSpec.capacityScaling: 'pixel-rate'` models it. An
+  earlier version of this file back-calculated 0.648 from the 9 Mpx headline on the
+  assumption that it was a link limit; it is not, and that understated every Brompton
+  link by 30% at 8-bit. Do not go back to it.
 
 `capacity.test.ts` pins all of this against the published numbers. **If those tests
 fail, fix the model — do not relax the test.** They are the only thing standing between
@@ -187,19 +205,30 @@ Drag commits once, on release, not per pointer-move: one undo step per drag, and
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**
-- Capacity model, calibrated against two vendors' published figures (12 tests)
+- Capacity model, calibrated against two vendors' published figures (28 tests)
 - Resolume Arena 7.27 preset export, schema taken from real Arena files
 - Wall geometry, stats, layout validation
 - Auto-wire (serpentine/column/row) with fill limits, and wiring validation
-- Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests)
+- Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests);
+  the map divides by the true pitch (width / pixels), not the datasheet's rounded label (3 tests)
 - Canvas: place, drag-move, marquee-select, nudge, delete, pan/zoom, undo/redo
 - Snapping, 45° drag constraint and arrow-key wall growth (22 tests) — see 4.6
 - Cloudflare Worker (static-assets) config, lazy-loaded PDF bundle
 
 **Scaffolding / known gaps:**
-- **Cabinet library is small** — 20 models. The schema and importer path matter more
-  than the count, but it needs filling out from datasheets.
-- **Receiving card limits are placeholders**, all `verified: false`.
+- **Cabinet library covers the rental ranges of five manufacturers** — 150 records as of
+  2026-09-11 (Absen, Aluvision, Gloshine, ROE, Unilumin), all but one from the maker's
+  own sheet. Not covered: fixed-install fine pitch (ROE Coral/Denali/Sierra, Absen CL/
+  PO), mesh panels with a non-square pitch (the model has one pitch per axis), curved and
+  cube-only variants, and the Gloshine series whose only public specs are website tables
+  without power or resolution (MV Ultra, MR, MT, CS II, ZS III, RB-B, CR MAX).
+- **Processors are NovaStar and Brompton only.** Colorlight, Megapixel HELIOS and
+  Evision (ROE's own platform, and the only one some Graphite/Topaz tiles list) need a
+  `ProcessorMake` extension and their datasheets.
+- **A per-output-card ceiling is not modelled** on the MX2000/MX6000 Pro: NovaStar cap
+  each output card at 17,694,720 px (8192x2160) at 8/10-bit, below what its eight 5G
+  links or forty gigabit drops carry. The chassis caps are the sum of the card caps, so
+  a fully loaded chassis comes out right; a lightly populated one is over-stated.
 - **The receiving card's effect on 10-bit wire cost is not modelled.** On COEX
   controllers the card decides whether 10-bit costs 32 bits or 48 — 494,791 px/port
   against 329,861, a 50% difference — and only the A10s Pro gets the 32. `container`

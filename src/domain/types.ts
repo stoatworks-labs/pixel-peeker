@@ -24,6 +24,7 @@ export type Provenance = {
 export type Manufacturer =
   | 'Aluvision'
   | 'Absen'
+  | 'Gloshine'
   | 'ROE Visual'
   | 'Unilumin'
   | 'Custom';
@@ -118,6 +119,13 @@ export interface PortSpec {
    * See `DEFAULT_LINK_EFFICIENCY` in capacity.ts for how the default was calibrated.
    */
   efficiency?: number;
+  /**
+   * Per-bit-depth override of `efficiency`, for the rare vendor who publishes a different
+   * constant for one depth. NovaStar's 5G ports are the case in hand: their formula prints
+   * 0.85 at 8-bit and 12-bit but 0.88 at 10-bit, and the table beneath it bears that out.
+   * Depths not listed here fall back to `efficiency`.
+   */
+  efficiencyByDepth?: Partial<Record<BitDepth, number>>;
   /** How pixels are packed onto the wire. See `wireBitsPerPixel` in capacity.ts. */
   packing?: 'container' | 'container-legacy' | 'naive';
   /**
@@ -151,6 +159,18 @@ export interface ProcessorSpec extends Provenance {
   totalCapacityPx?: number;
   referenceBitDepth?: BitDepth;
   referenceFrameRateHz?: number;
+  /**
+   * How `totalCapacityPx` moves with the signal format.
+   *
+   * - `bandwidth` (the default): a link-rate figure quoted at the reference format, so it
+   *   scales by wire bits per pixel AND by frame rate. NovaStar quote this way.
+   * - `pixel-rate`: a processing figure — the pixels per frame the box can map, the same
+   *   at 8, 10 and 12-bit, flat up to the reference frame rate and proportional to
+   *   1/frameRate above it. Brompton publish this shape: the SX40 is 9 Mpx at every bit
+   *   depth up to 60 Hz, 7.5 Mpx at 72 Hz and 4.5 Mpx at 120 Hz. Bit depth still costs
+   *   the ports, just not the processor.
+   */
+  capacityScaling?: 'bandwidth' | 'pixel-rate';
   /**
    * A FIXED pixel ceiling that does not move with bit depth or frame rate — unlike
    * `totalCapacityPx`, which is a bandwidth figure quoted at a reference format and is

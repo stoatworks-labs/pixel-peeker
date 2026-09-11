@@ -12,12 +12,13 @@ processor carries it on 11 of 20 ports at 64% device load — each colour on the
 
 > **Before you rely on this:** the capacity model is verified numerically — it reproduces
 > NovaStar's three published MX40 Pro per-port figures **to the pixel** and Brompton's published
-> SX40 headline, and those are pinned as tests. The cabinet library was parsed from manufacturer
+> per-port capacity table, and those are pinned as tests. The cabinet library was parsed from manufacturer
 > datasheet PDFs, **each record carrying its source**.
 >
 > **It has not been used to design a wall that was then built.** No processor, receiving card or
 > panel has been connected to it, and the Resolume file has not been opened in a running Arena.
-> **Status: alpha**, and the cabinet library is small.
+> **Status: alpha**. The cabinet library covers the rental ranges of Absen, Aluvision, Gloshine,
+> ROE Visual and Unilumin, and NovaStar and Brompton processing.
 >
 > This codebase was created with AI assistance, directed and reviewed by a human author.
 
@@ -103,4 +104,4 @@ interchange file**.
 | **The device is full but the ports are not** | Device capacity is a separate limit from the sum of the ports. |
 | **A port cannot reach 60 Hz** | Read the max-frame-rate column for that port's load. |
 | **Another tool refuses my export** | It needs the JSON export, not the project save. |
-| **A cabinet's spec looks wrong** | Each record carries its datasheet source — check it there. The library is small and alpha. |
+| **A cabinet's spec looks wrong** | Each record carries its datasheet source — check it there. Series-wide facts are in the comment above the series in `src/data/cabinets/`. |

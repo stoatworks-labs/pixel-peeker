@@ -62,6 +62,13 @@ import type {
  * 10-bit costs the full 48 bits whatever card is on the other end. The MCTRL660 PRO
  * datasheet states both of its figures, and they are exactly 2:1 — 650,000 px at 8-bit
  * and 325,000 px at 10/12-bit — which is 24 vs 48 bits and cannot be 24 vs 32.
+ *
+ * `naive` — 24/30/36 bits — is not a straw man: it is what a Brompton Tessera link does.
+ * Brompton's own per-port capacity table gives 525,000 / 420,000 / 350,000 px at 8/10/12-bit
+ * and 60 Hz, which are exactly 24:30:36, and every row of it is one constant of
+ * 756 Mbps of payload per gigabit port. (NovaStar's 5G solution was ALSO naive in its
+ * V1.1.1 specification, at 24/30/36 bits and 0.7465 — V1.5.0 of September 2025 re-rated
+ * it to power-of-two containers at 0.85, and that is what the library now carries.)
  */
 export type PixelPacking = 'container' | 'container-legacy' | 'naive';
 
@@ -87,6 +94,11 @@ export function wireBitsPerPixel(
  */
 export const DEFAULT_LINK_EFFICIENCY = 0.95;
 
+/** The efficiency a port runs at for one bit depth — the per-depth override wins. */
+export function portEfficiency(port: PortSpec, bitDepth: BitDepth): number {
+  return port.efficiencyByDepth?.[bitDepth] ?? port.efficiency ?? DEFAULT_LINK_EFFICIENCY;
+}
+
 export interface PortCapacity {
   /** Pixels this port can carry at the given signal format. */
   capacityPx: number;
@@ -106,7 +118,7 @@ export interface PortCapacity {
  * numbers to agree. Headroom is a design decision, exposed as `fillTo` in auto-wiring.
  */
 export function portCapacity(port: PortSpec, signal: SignalFormat): PortCapacity {
-  const efficiency = port.efficiency ?? DEFAULT_LINK_EFFICIENCY;
+  const efficiency = portEfficiency(port, signal.bitDepth);
   const bitsPerPixel = wireBitsPerPixel(signal.bitDepth, port.packing);
   const payloadBps = port.linkSpeedGbps * 1e9 * efficiency;
   return {
@@ -128,14 +140,23 @@ export function portCapacity(port: PortSpec, signal: SignalFormat): PortCapacity
  * pipeline's canvas rather than its bandwidth, so it stays put while the other two
  * derate. On the send-only MCTRL boxes it is the limit at 8-bit and the ports take over
  * at 10/12-bit. See the field comment on `ProcessorSpec`.
+ *
+ * Brompton sit between the two: a Tessera processor's headline is a pixel count that
+ * ignores bit depth entirely but still halves when the frame rate doubles past 60 Hz.
+ * `capacityScaling: 'pixel-rate'` selects that shape — see the field comment.
  */
 export function processorCapacity(spec: ProcessorSpec, signal: SignalFormat): number {
   const portSum = spec.ports.reduce((n, p) => n + portCapacity(p, signal).capacityPx, 0);
   const canvasCap = spec.maxCanvasPx ?? Infinity;
   if (spec.totalCapacityPx == null) return Math.min(portSum, canvasCap);
 
-  const refBits = wireBitsPerPixel(spec.referenceBitDepth ?? 8, spec.ports[0]?.packing);
   const refFps = spec.referenceFrameRateHz ?? 60;
+  if (spec.capacityScaling === 'pixel-rate') {
+    const scaled = Math.floor(spec.totalCapacityPx * Math.min(1, refFps / signal.frameRateHz));
+    return Math.min(portSum, scaled, canvasCap);
+  }
+
+  const refBits = wireBitsPerPixel(spec.referenceBitDepth ?? 8, spec.ports[0]?.packing);
   const nowBits = wireBitsPerPixel(signal.bitDepth, spec.ports[0]?.packing);
   const scaled = Math.floor(
     (spec.totalCapacityPx * refBits * refFps) / nowBits / signal.frameRateHz,
@@ -254,7 +275,6 @@ export function maxFrameRateFor(
   bitDepth: BitDepth,
 ): number {
   if (pixels <= 0) return Infinity;
-  const efficiency = port.efficiency ?? DEFAULT_LINK_EFFICIENCY;
-  const bps = port.linkSpeedGbps * 1e9 * efficiency;
+  const bps = port.linkSpeedGbps * 1e9 * portEfficiency(port, bitDepth);
   return bps / wireBitsPerPixel(bitDepth, port.packing) / pixels;
 }

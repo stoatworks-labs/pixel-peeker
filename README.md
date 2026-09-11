@@ -18,8 +18,9 @@ Runs entirely in the browser. No account, no server, nothing uploaded. Deploys t
 Cloudflare as a static site.
 
 **Status: alpha.** The maths is tested against published manufacturer figures; the
-cabinet library is small; one export format is unverified. See below — the honesty is
-the point.
+cabinet library covers 150 cabinets across five manufacturers and 15 processors, each
+from its maker's own datasheet; one export format is unverified. See below — the
+honesty is the point.
 
 ![Pixel Peeker — a 144-cabinet wall auto-wired across eleven ports of a NovaStar MX40
 Pro, with the port-loading table alongside](docs/screenshots/pixel-peeker.png)
@@ -84,11 +85,17 @@ app prints is suspect.
 - **The device cap is often the real limit, not the ports.** An MX40 Pro's twenty
   gigabit ports could carry 13.2 Mpx between them. The box is rated 9 Mpx.
 
-Brompton is modelled separately: their effective link efficiency is much lower because
-a Tessera link carries per-fixture calibration and timing data alongside the pixels.
-The figure is back-calculated from Brompton's own published headline (9 Mpx at 12-bit
-60 Hz over four 10G trunks), and cross-checks against their statement that each 10G
-trunk carries ten 1G fixture links.
+Brompton is modelled separately, from their published per-port capacity table rather
+than a headline: a Tessera gigabit output carries 525,000 / 420,000 / 350,000 px at
+8 / 10 / 12-bit and 60 Hz. Those are exactly 24 : 30 : 36 bits — Brompton pack
+*naively*, unlike NovaStar — and one constant of 756 Mbps of payload reproduces every
+row of the table. The processor caps (9 Mpx for an SX40, 4.5 for an S8) are a different
+shape again: the same at every bit depth up to 60 Hz, then halving as the frame rate
+doubles. Both shapes are pinned by tests.
+
+NovaStar's 5G ports (CX40 Pro, and the 5G output cards in the MX2000/MX6000 Pro) are a
+third calibration — containers at 0.85, and 0.88 at 10-bit — taken from the V1.5.1
+specifications, which re-rated the 5G solution in September 2025.
 
 ## Data provenance
 
@@ -100,14 +107,16 @@ and called out in the PDF report.
 
 | Manufacturer | Models | Verified |
 |--------------|--------|----------|
-| Absen        | 14 (Polaris PL V2 series) | ✅ datasheet |
-| Aluvision    | 4 (Hi-LED 55 range)       | ✅ datasheet |
-| ROE Visual   | 1 (Black Pearl BP2 V2)    | ✅ datasheet |
-| Unilumin     | 1 (Upad III 2.6)          | ⚠️ power figures unverified |
-| NovaStar     | MX40 Pro                  | ✅ datasheet |
-| Brompton     | Tessera SX40              | ✅ datasheet |
+| Absen        | 29 — Polaris PL V2, PL V3, PL Plus V2X; Jupiter JP Pro; Aries AX Pro | ✅ datasheet |
+| Aluvision    | 6 — Hi-LED 55 (four pitches), Hi-LED pro / Hi-LED+ pro P1.9 | ✅ datasheet |
+| Gloshine     | 51 — Carbon, Curface Pro, Dawn, Column, AR floor, Legend, Vanish / Vanish Max | ✅ datasheet |
+| ROE Visual   | 44 — Black Pearl, Black Quartz, Carbon, CB MarkII, Diamond, Graphite, Meru, Topaz, Ruby, Vanish (MKII / V8T / ST / Air / Acoustics), Black Marble | ✅ datasheet |
+| Unilumin     | 20 — Upad IV (8), URM III (11), Upad III | ✅ datasheet, except the Upad III (rental-house cut sheet, power confirmed by Unilumin's manual) |
+| NovaStar     | 12 — COEX MX40 Pro, CX40 Pro, MX30, MX20, KU20, MX2000 Pro and MX6000 Pro (1G and 5G); MCTRL4K, MCTRL660 PRO, MCTRL660 | ✅ datasheet |
+| Brompton     | 3 — Tessera SX40, S8, SQ200 (with QD-S) | ✅ datasheet |
 
-Receiving-card pixel limits are **not** verified and are conservative placeholders.
+Receiving-card pixel limits (NovaStar A10s Pro, A8s Pro, A8s, A5s Plus, A4s; Brompton
+R2) are verified against the card datasheets.
 
 **Adding data:** take it from the manufacturer's own datasheet. Do not copy records out
 of another tool's curated database — the individual specs are facts, but a compiled

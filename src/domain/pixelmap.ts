@@ -8,7 +8,13 @@
 
 import type { CabinetInstance, CabinetSpec, Project } from './types';
 import { cabinetPixels } from './types';
-import { pixelRectOf, wallBoundsMm, type PixelRect, type SpecLookup } from './wall';
+import {
+  pixelRectOf,
+  referencePitchMm as wallReferencePitchMm,
+  wallBoundsMm,
+  type PixelRect,
+  type SpecLookup,
+} from './wall';
 import type { ProcessorLoad } from './wiring';
 
 export interface MappedCabinet {
@@ -55,12 +61,14 @@ export function buildPixelMap(
   const bounds = wallBoundsMm(project, lookup);
   const origin = bounds ? { xMm: bounds.xMm, yMm: bounds.yMm } : { xMm: 0, yMm: 0 };
 
+  // Mixed-pitch detection goes by the datasheet figure; the division itself goes by the
+  // true pitch (width / pixels), because the datasheet figure is rounded. See `truePitchMm`.
   const pitches = new Set<number>();
   for (const inst of project.cabinets) {
     const spec = lookup(inst.specId);
     if (spec) pitches.add(spec.pixelPitchMm);
   }
-  const referencePitchMm = [...pitches].sort((a, b) => a - b)[0] ?? 2.6;
+  const referencePitchMm = wallReferencePitchMm(project, lookup);
 
   // Where each cabinet sits in its chain.
   const positionOf = new Map<string, { chainId: string; index: number }>();

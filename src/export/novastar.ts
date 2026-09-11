@@ -171,7 +171,7 @@ export function buildInterchange(
     wall: {
       widthPx: map.width,
       heightPx: map.height,
-      referencePitchMm: map.referencePitchMm,
+      referencePitchMm: Number(map.referencePitchMm.toFixed(6)),
       approximatePixelMap: map.approximate,
       cabinetCount: map.cabinets.length,
       totalPixels: map.cabinets.reduce((n, c) => n + c.rect.width * c.rect.height, 0),

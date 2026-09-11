@@ -22,8 +22,9 @@ Key files:
 
 - `src/domain/capacity.ts` — port/device capacity. Calibrated against published vendor
   figures; `capacity.test.ts` pins it. Fix the model, never the test.
-- `src/data/cabinets.ts`, `src/data/processors.ts` — the library. Every record needs
-  `verified` + `source`. Primary datasheets only.
+- `src/data/cabinets/<maker>.ts`, `src/data/processors.ts` — the library. Every record
+  needs `verified` + `source`. Primary datasheets only. `src/data/library.test.ts`
+  sanity-checks every record.
 - `src/export/resolume.ts` — schema taken from real Arena 7.27 files (via `blend-calc`),
   not from Resolume's docs. Version stamp lives in `ARENA_VERSION`.
 - `src/export/novastar.ts` — deliberately does not emit `.scr`/`.vmp`. Read the comment.

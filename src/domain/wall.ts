@@ -74,6 +74,29 @@ export function pitchesInUse(project: Project, lookup: SpecLookup): number[] {
 }
 
 /**
+ * The pitch a cabinet ACTUALLY tiles at: its width divided by its pixel count.
+ *
+ * `pixelPitchMm` is the figure on the datasheet, and datasheets round — Absen call
+ * 500/168 "2.97" and Gloshine call 500/128 "3.91". Rounding is fine for a label but not
+ * for dividing millimetres into pixels: at 2.97 the second PL2.9 cabinet across lands on
+ * pixel 337 instead of 336, and every cabinet after it is a pixel out. The pixel map
+ * therefore derives its reference pitch from this, never from the printed figure.
+ */
+export function truePitchMm(spec: CabinetSpec): number {
+  return spec.widthMm / spec.pixelsX;
+}
+
+/** The finest true pitch on the wall — the reference the pixel map is divided at. */
+export function referencePitchMm(project: Project, lookup: SpecLookup): number {
+  let finest = Infinity;
+  for (const inst of project.cabinets) {
+    const spec = lookup(inst.specId);
+    if (spec) finest = Math.min(finest, truePitchMm(spec));
+  }
+  return Number.isFinite(finest) ? finest : 2.6;
+}
+
+/**
  * Pixel-space rectangle of one cabinet.
  *
  * Pixel origin is derived by dividing the cabinet's millimetre offset (relative to
@@ -122,8 +145,7 @@ export interface WallStats {
 
 export function wallStats(project: Project, lookup: SpecLookup): WallStats {
   const bounds = wallBoundsMm(project, lookup);
-  const pitches = pitchesInUse(project, lookup);
-  const referencePitchMm = pitches[0] ?? 2.6;
+  const referencePitch = referencePitchMm(project, lookup);
 
   const counts = new Map<string, number>();
   let totalPixels = 0;
@@ -152,8 +174,8 @@ export function wallStats(project: Project, lookup: SpecLookup): WallStats {
     ? {
         x: 0,
         y: 0,
-        width: Math.round(bounds.widthMm / referencePitchMm),
-        height: Math.round(bounds.heightMm / referencePitchMm),
+        width: Math.round(bounds.widthMm / referencePitch),
+        height: Math.round(bounds.heightMm / referencePitch),
       }
     : null;
 
@@ -172,7 +194,7 @@ export function wallStats(project: Project, lookup: SpecLookup): WallStats {
     peakAmps230: powerMaxW / 230,
     peakAmps110: powerMaxW / 110,
     areaSqm: areaSqmm / 1e6,
-    referencePitchMm,
+    referencePitchMm: referencePitch,
   };
 }
 

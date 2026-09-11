@@ -183,7 +183,7 @@ export function buildReport(input: ReportInput): jsPDF {
       `${(stats.peakAmps230 / 3).toFixed(1)} A per phase @ 230 V  /  ` +
         `${(stats.peakAmps110 / 3).toFixed(1)} A per phase @ 110 V`,
     ],
-    ['Reference pitch', `${stats.referencePitchMm} mm`],
+    ['Reference pitch', `${Number(stats.referencePitchMm.toFixed(4))} mm`],
   ];
   if (stats.fillRatio < 0.999) {
     summaryRows.push([
