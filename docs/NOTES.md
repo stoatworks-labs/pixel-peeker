@@ -171,3 +171,38 @@ has one pitch per axis), curved-only and cube-only variants, fixed-install fine 
 and Absen's PL V3 corner panels. Colorlight, Megapixel HELIOS and Evision processors
 would need a `ProcessorMake` extension; ROE now list Evision as the *only* platform on
 Graphite and Topaz.
+
+## The stage overflowed its grid row, 2026-09-21
+
+Reported as two Chrome-on-Windows bugs — the support footer rendering wrong, and the
+`Select`/`Place`/`Fit`/`Snap`/`Wiring`/`Delete` toolbar missing from the layout area.
+One cause: `.stage` had `min-width: 0` but not `min-height: 0`.
+
+A grid item's automatic minimum size is content-derived, and the stage's content is an
+`<svg>` with a viewBox, so it has an intrinsic aspect ratio and therefore an intrinsic
+*height*. That height, not the container, was setting the base size of `.main`'s auto
+row. `.main` and `.side` both already carried the clamp; the stage was the one that
+missed it.
+
+**It latches, which is why it reads as random.** `useViewport` measures the rendered
+`<svg>` and `WallCanvas` writes the measured ratio straight back into the viewBox, so
+the SVG's size sets the intrinsic ratio that sets the row height that sets the SVG's
+size. That loop is stable at *any* value. Grow the viewport and the row has slack, the
+SVG grows, the `ResizeObserver` fires, it re-converges. Shrink it and the row stays at
+the SVG's intrinsic height — the SVG never changes size, so the observer never fires,
+and it stays wrong until a reload. A fresh load at the same window size is always
+correct, which is exactly what makes it look like it is not happening.
+
+Measured on win-lab (Chromium 153, 1272 CSS px wide): shrinking the viewport from 634
+to 600 put the row 22px past `.main` and 12px of the toolbar below the fold; at 540 the
+row overhung `.app` by 82px and the side panels painted over the top 42px of the
+footer, printing the panel text and the footer's first line on top of each other.
+
+Not Windows-specific in mechanism — it reproduces in Chromium on macOS at the same
+viewport — but Windows gets there first. The footer always makes the page taller than
+the viewport, so Windows always draws a classic 15px scrollbar where macOS draws an
+overlay one, and Windows window chrome leaves less height to begin with.
+
+Fix is `min-height: 0` plus `overflow: hidden` on `.stage`. Do not remove either: the
+canvas is the one place in the app whose content can size itself from its own rendered
+size, so it is the one place where an unclamped grid row can run away.

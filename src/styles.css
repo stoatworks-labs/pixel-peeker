@@ -133,9 +133,37 @@ input[type="number"] { font-family: var(--mono); }
   border-left: 1px solid var(--line);
 }
 
+/*
+ * `min-height: 0` is load-bearing, for the same reason it is on `.side` and
+ * `.main`: a grid item's automatic minimum size is its content's, and this one's
+ * content is an <svg> with a viewBox, so it has an intrinsic aspect ratio and
+ * therefore an intrinsic *height* derived from the stage's width. Without the
+ * clamp, that height becomes the base size of `.main`'s auto row, and the row
+ * grows past `.main` instead of being bounded by it.
+ *
+ * That turns into a latch, because WallCanvas measures the rendered <svg> and
+ * writes the ratio it measures back into the viewBox — so the SVG's own size
+ * determines the intrinsic ratio that determines the row height that determines
+ * the SVG's size. The loop is stable at any value, not just the right one. Grow
+ * the viewport and the row has slack, the SVG grows, the ResizeObserver fires
+ * and it re-converges; *shrink* it and the row stays at the SVG's intrinsic
+ * height, so the SVG never changes size, so the observer never fires and it
+ * never recovers. The row then overhangs `.app`, which carries the bottom-left
+ * `.overlay` toolbar below the fold and paints the side panels over the top of
+ * the support footer. Both of those were reported as Chrome-on-Windows bugs;
+ * the mechanism is not platform-specific, but Windows gets there first, because
+ * a classic 15px scrollbar (which the footer always forces) and the taller
+ * window chrome leave a shorter viewport than the same window on macOS.
+ *
+ * `overflow: hidden` both zeroes the automatic minimum size in its own right and
+ * keeps the SVG inside the stage. `.overlay` and `.hint` are positioned against
+ * the stage's padding box, so neither is clipped by it.
+ */
 .stage {
   position: relative;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background:
     linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 20px 20px,
     linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 20px 20px,
