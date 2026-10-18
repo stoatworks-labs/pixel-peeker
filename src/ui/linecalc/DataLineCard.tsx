@@ -67,7 +67,12 @@ export function DataLineCard({
           <dt>Link</dt>
           <dd>
             {port.linkSpeedGbps} Gb/s {port.medium} × {result.portCount}, {(result.efficiency * 100).toFixed(1)}% efficient
-            {port.subLinks ? <em> — each one a trunk of {port.subLinks} links</em> : null}
+            {result.trunk?.breakout ? (
+              <em>
+                {' '}— outputs of a {result.trunk.breakout.model} on each {result.trunk.linkSpeedGbps} Gb/s
+                trunk, {result.trunk.breakout.outputs} per trunk
+              </em>
+            ) : null}
           </dd>
         </div>
         <div>
@@ -82,6 +87,10 @@ export function DataLineCard({
               <em>
                 {' '}— capped at {px(result.deviceCapacityPx)}, so it fills only {result.portsFilled} of
                 its {result.portCount} ports
+              </em>
+            ) : result.trunkBound ? (
+              <em>
+                {' '}— the trunks fill before all {result.portCount} {result.trunk?.breakout?.model} outputs do
               </em>
             ) : (
               <em> — {result.portCount} ports × {result.panelsPerPort}</em>

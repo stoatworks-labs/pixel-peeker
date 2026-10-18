@@ -18,11 +18,17 @@
  *     of the port sum, the scaled device cap and any fixed canvas) is then applied in
  *     whole cabinets too.
  *
+ * On a trunk port with a breakout box the "port" is ONE OUTPUT of the box — a CVT8-5G
+ * output, not the 40G fibre feeding it — because that is the cable a line of cabinets
+ * hangs off. A trunk then carries the smaller of its outputs' whole cabinets and its
+ * own capacity in whole cabinets (`domain/breakout.ts`).
+ *
  * Every processor in the library has identical ports, which is what lets one port stand
  * for the box in "panels per port". data-line.test.ts pins that, so a future controller
  * with mixed ports fails a test rather than being described by its first port.
  */
 
+import { portOutputs } from './breakout';
 import {
   maxFrameRateFor,
   portCapacity,
@@ -48,8 +54,11 @@ export interface DataLineResult {
   portLimitedBy: PortLimit;
   /** ...and what bound the whole box. */
   processorLimitedBy: ProcessorLimit;
-  /** The port the per-port figures describe. */
+  /** The output the per-port figures describe — a breakout output on a trunk port. */
   port: PortSpec;
+  /** The processor port `port` is an output of, when it has a breakout box. */
+  trunk?: PortSpec;
+  /** Outputs on the box: processor ports, or breakout outputs across every trunk. */
   portCount: number;
   portCapacityPx: number;
   /** Wire bits per pixel at this format — 24/32/48 on a container port. */
@@ -64,6 +73,11 @@ export interface DataLineResult {
   panelsPerProcessor: number;
   /** `processorCapacity` at this format: never more than the sum of the ports. */
   deviceCapacityPx: number;
+  /**
+   * The trunks, not their breakout outputs, are what bind: the box's outputs could
+   * carry more than their trunks do. No box in the library does that today.
+   */
+  trunkBound: boolean;
   /** Ports the box fills before its own ceiling stops it. */
   portsFilled: number;
   /** Highest frame rate one port sustains with `panelsPerPort` cabinets on it. */
@@ -80,8 +94,8 @@ export function dataLine(
 ): DataLineResult {
   const px = cabinet.pixelsX * cabinet.pixelsY;
   if (!(px > 0)) throw new Error('a cabinet with no pixels has no capacity');
-  const port = proc.ports[0];
-  if (!port) throw new Error(`${proc.id} has no output ports`);
+  if (!proc.ports[0]) throw new Error(`${proc.id} has no output ports`);
+  const [{ port, trunk }] = portOutputs(proc.ports[0]);
 
   const cap = portCapacity(port, signal);
 
@@ -97,9 +111,19 @@ export function dataLine(
   const panels = cardLimit ? 0 : Math.floor(cap.capacityPx / px);
   const portLimitedBy: PortLimit = cardLimit ? 'receiving-card' : 'port-bandwidth';
 
-  const portsWorth = cardLimit
-    ? 0
-    : proc.ports.reduce((n, p) => n + Math.floor(portCapacity(p, signal).capacityPx / px), 0);
+  /* Whole cabinets per processor port: its outputs' cabinets added up, held to what a
+     trunk carries in whole cabinets when the outputs could carry more than it does. */
+  const portWorth = (p: PortSpec) => {
+    const outputs = portOutputs(p).reduce(
+      (n, o) => n + Math.floor(portCapacity(o.port, signal).capacityPx / px),
+      0,
+    );
+    return p.breakout
+      ? Math.min(outputs, Math.floor(portCapacity(p, signal).capacityPx / px))
+      : outputs;
+  };
+  const portsWorth = cardLimit ? 0 : proc.ports.reduce((n, p) => n + portWorth(p), 0);
+  const portCount = proc.ports.reduce((n, p) => n + portOutputs(p).length, 0);
   const device = processorCapacity(proc, signal);
   const byDevice = Math.floor(device / px);
   const deviceBinds = byDevice < portsWorth;
@@ -112,7 +136,8 @@ export function dataLine(
     portLimitedBy,
     processorLimitedBy: deviceBinds ? 'device-cap' : portLimitedBy,
     port,
-    portCount: proc.ports.length,
+    ...(trunk ? { trunk } : {}),
+    portCount,
     portCapacityPx: cap.capacityPx,
     bitsPerPixel: cap.bitsPerPixel,
     efficiency: portEfficiency(port, signal.bitDepth),
@@ -121,6 +146,7 @@ export function dataLine(
     utilisation: cap.capacityPx > 0 ? used / cap.capacityPx : 0,
     panelsPerProcessor: perProcessor,
     deviceCapacityPx: device,
+    trunkBound: portsWorth < portCount * panels,
     portsFilled: panels > 0 ? Math.ceil(perProcessor / panels) : 0,
     maxFrameRateHz: maxFrameRateFor(port, used, signal.bitDepth),
     ...(cardLimit ? { cardLimit } : {}),

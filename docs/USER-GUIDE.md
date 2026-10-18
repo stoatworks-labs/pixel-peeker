@@ -72,6 +72,20 @@ catches people out.
 Every port shows its load, its headroom, and the highest frame rate it could sustain at that load.
 That last figure is the one to check before you promise 60 Hz on a 10-bit wall.
 
+**Fibre trunks and breakout boxes.** The big chassis (MX2000 Pro, MX6000 Pro) and the Brompton
+SX40 and SQ200 send their outputs down fibre trunks to a breakout box: a CVT8-5G, a CVT10, or a
+Tessera XD or XD-T. You don't hang cabinets off the trunk. Each chain runs from one output of the
+box, so that's what auto-wire fills and what the port table lists, as `OUT 1 / OPT 1 › CVT8-5G 3`.
+A trunk row under them gives the total. On every box in the library the outputs add up to what the
+trunk carries, so it won't get in your way, but if a trunk ever fills before its outputs do, auto-wire
+stops there and says so. Line calc counts panels per box output as well.
+
+The SQ200 gets twelve outputs per trunk, because Brompton's XD-T runs all twelve from a QD-S port.
+On an SX40 the same XD-T only runs its first ten, which is why the SX40 is shown with the original
+ten-output XD. It comes to the same thing.
+
+If you open a wall saved before this, any chain wired to a trunk gets flagged. Re-run auto-wire.
+
 ---
 
 ## Power circuits

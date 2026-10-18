@@ -4,8 +4,14 @@
  * A chain is the physical cable run out of one output port. Order is the sending
  * order, and it is what LCT/VMP will ask you to draw by hand. Getting it right
  * here is the point of the whole app.
+ *
+ * A chain runs from an OUTPUT LINK, not necessarily a processor port: on a trunk port
+ * with a breakout box (CVT8-5G, CVT10, Tessera XD) it runs from one of the box's
+ * outputs, and the trunk is checked separately as the sum of them. See
+ * `domain/breakout.ts`.
  */
 
+import { outputLinks } from './breakout';
 import { portCapacity, processorCapacity } from './capacity';
 import type {
   CabinetInstance,
@@ -23,7 +29,10 @@ import type { Issue, SpecLookup } from './wall';
 export interface PortLoad {
   processor: ProcessorInstance;
   processorSpec: ProcessorSpec;
+  /** The output link the chain runs from — a processor port, or one breakout output. */
   port: PortSpec;
+  /** The trunk port, when `port` is an output of the breakout box on it. */
+  trunk?: PortSpec;
   chain?: Chain;
   cabinets: { inst: CabinetInstance; spec: CabinetSpec }[];
   usedPx: number;
@@ -34,10 +43,27 @@ export interface PortLoad {
   maxFrameRateHz: number;
 }
 
+/**
+ * One trunk port and the breakout outputs behind it. The outputs are each checked as
+ * a port; this is the check that they fit down the trunk between them. On every box in
+ * the library the outputs sum to the trunk (the XD-T's twelve included: the QD-S trunk
+ * carries all twelve), so it binds only on a box with more outputs than its trunk
+ * carries. Daisy-chained XDs sharing a trunk will be the first, once they are modelled.
+ */
+export interface TrunkLoad {
+  port: PortSpec;
+  outputs: PortLoad[];
+  usedPx: number;
+  capacityPx: number;
+  utilisation: number;
+}
+
 export interface ProcessorLoad {
   processor: ProcessorInstance;
   spec: ProcessorSpec;
+  /** One entry per output link: breakout outputs replace the trunk they hang off. */
   ports: PortLoad[];
+  trunks: TrunkLoad[];
   usedPx: number;
   capacityPx: number;
   utilisation: number;
@@ -55,7 +81,7 @@ export function computeLoads(
     const spec = processorSpec(proc.specId);
     if (!spec) continue;
 
-    const ports: PortLoad[] = spec.ports.map((port) => {
+    const ports: PortLoad[] = outputLinks(spec).map(({ port, trunk }) => {
       const chain = project.chains.find(
         (c) => c.processorId === proc.id && c.portId === port.id,
       );
@@ -73,6 +99,7 @@ export function computeLoads(
         processor: proc,
         processorSpec: spec,
         port,
+        ...(trunk ? { trunk } : {}),
         chain,
         cabinets,
         usedPx,
@@ -86,12 +113,22 @@ export function computeLoads(
       };
     });
 
+    const trunks: TrunkLoad[] = spec.ports
+      .filter((port) => port.breakout)
+      .map((port) => {
+        const outputs = ports.filter((p) => p.trunk === port);
+        const used = outputs.reduce((n, p) => n + p.usedPx, 0);
+        const cap = portCapacity(port, project.signal).capacityPx;
+        return { port, outputs, usedPx: used, capacityPx: cap, utilisation: cap > 0 ? used / cap : 0 };
+      });
+
     const usedPx = ports.reduce((n, p) => n + p.usedPx, 0);
     const capacityPx = processorCapacity(spec, project.signal);
     out.push({
       processor: proc,
       spec,
       ports,
+      trunks,
       usedPx,
       capacityPx,
       utilisation: capacityPx > 0 ? usedPx / capacityPx : 0,
@@ -172,6 +209,17 @@ export function validateWiring(
       }
     }
 
+    for (const trunk of load.trunks) {
+      if (trunk.usedPx > trunk.capacityPx) {
+        issues.push({
+          severity: 'error',
+          code: 'trunk-over-capacity',
+          message: `${load.processor.name} ${trunk.port.label} is over capacity: its ${trunk.port.breakout!.model} outputs carry ${trunk.usedPx.toLocaleString()} px between them on a ${trunk.capacityPx.toLocaleString()} px trunk (${Math.round(trunk.utilisation * 100)}%). Each output has room; the trunk does not.`,
+          refs: trunk.outputs.flatMap((p) => (p.chain ? [p.chain.id] : [])),
+        });
+      }
+    }
+
     if (load.usedPx > load.capacityPx) {
       issues.push({
         severity: 'error',
@@ -180,6 +228,23 @@ export function validateWiring(
         refs: [load.processor.id],
       });
     }
+  }
+
+  // A chain must name an output that exists. A file saved before breakout boxes were
+  // modelled has chains patched to the trunk itself (`out1-opt1`), which is not
+  // something a cabinet can plug into — and the pixels on it are not counted anywhere.
+  for (const chain of project.chains) {
+    const load = loads.find((l) => l.processor.id === chain.processorId);
+    if (!load || load.ports.some((p) => p.port.id === chain.portId)) continue;
+    const trunk = load.spec.ports.find((p) => p.id === chain.portId);
+    issues.push({
+      severity: 'error',
+      code: 'no-such-output',
+      message: trunk?.breakout
+        ? `A chain is patched to ${load.processor.name} ${trunk.label}, a trunk to a ${trunk.breakout.model} — cabinets run from the box's outputs, not the trunk. Re-run auto-wire.`
+        : `A chain is patched to ${chain.portId} on ${load.processor.name}, which has no such output. Re-run auto-wire.`,
+      refs: [chain.id],
+    });
   }
 
   // Input signal has to be able to carry the wall.
@@ -357,15 +422,42 @@ export function autoWire(
 
   const queue = orderCabinets(placed, options.pattern);
 
-  const slots: { proc: ProcessorInstance; spec: ProcessorSpec; port: PortSpec }[] = [];
+  const slots: {
+    proc: ProcessorInstance;
+    spec: ProcessorSpec;
+    port: PortSpec;
+    trunk?: PortSpec;
+  }[] = [];
   for (const proc of project.processors) {
     const spec = processorSpec(proc.specId);
     if (!spec) continue;
-    for (const port of spec.ports) {
+    for (const { port, trunk } of outputLinks(spec)) {
       const taken =
         options.skipPatched &&
         project.chains.some((c) => c.processorId === proc.id && c.portId === port.id);
-      if (!taken) slots.push({ proc, spec, port });
+      if (!taken) slots.push({ proc, spec, port, trunk });
+    }
+  }
+
+  // What each trunk has left, filled to the same limit as its outputs. Outputs already
+  // patched (skipPatched) are charged against it first.
+  const trunkLeft = new Map<string, number>();
+  const trunkKey = (procId: string, trunk: PortSpec) => `${procId}\u0000${trunk.id}`;
+  for (const proc of project.processors) {
+    const spec = processorSpec(proc.specId);
+    for (const trunk of spec?.ports.filter((p) => p.breakout) ?? []) {
+      const kept = alreadyPatched.size
+        ? project.chains
+            .filter((c) => c.processorId === proc.id && c.portId.startsWith(`${trunk.id}/`))
+            .flatMap((c) => c.cabinetIds)
+            .reduce((n, id) => {
+              const inst = project.cabinets.find((c) => c.id === id);
+              const cs = inst ? cabinetSpec(inst.specId) : undefined;
+              return n + (cs ? cabinetPixels(cs) : 0);
+            }, 0)
+        : 0;
+      const cap = Math.floor(portCapacity(trunk, project.signal).capacityPx * options.fillTo);
+      trunkLeft.set(trunkKey(proc.id, trunk), cap - kept);
     }
   }
 
@@ -378,13 +470,16 @@ export function autoWire(
   }
 
   const chains: Chain[] = [];
+  const trunkFull = new Set<string>();
   let cursor = 0;
 
   for (const slot of slots) {
     if (cursor >= queue.length) break;
-    const cap = Math.floor(
+    const key = slot.trunk ? trunkKey(slot.proc.id, slot.trunk) : undefined;
+    const portCap = Math.floor(
       portCapacity(slot.port, project.signal).capacityPx * options.fillTo,
     );
+    const cap = key ? Math.min(portCap, trunkLeft.get(key) ?? 0) : portCap;
     const ids: string[] = [];
     let used = 0;
     while (cursor < queue.length) {
@@ -395,6 +490,7 @@ export function autoWire(
       used += px;
       cursor++;
     }
+    if (key) trunkLeft.set(key, (trunkLeft.get(key) ?? 0) - used);
     if (ids.length) {
       chains.push({
         id: idFactory(),
@@ -402,6 +498,14 @@ export function autoWire(
         portId: slot.port.id,
         cabinetIds: ids,
       });
+    } else if (cursor < queue.length && key && cap < portCap) {
+      // Said once per trunk: every output after this one is out of trunk too.
+      if (!trunkFull.has(key)) {
+        trunkFull.add(key);
+        notes.push(
+          `${slot.proc.name} ${slot.trunk!.label} ran out of trunk before its ${slot.trunk!.breakout!.model} ran out of outputs — the rest of its outputs were left empty.`,
+        );
+      }
     } else if (cursor < queue.length) {
       notes.push(
         `${slot.proc.name} ${slot.port.label} was skipped — the next cabinet alone (${cabinetPixels(queue[cursor].spec).toLocaleString()} px) exceeds the ${Math.round(options.fillTo * 100)}% fill limit of ${cap.toLocaleString()} px.`,

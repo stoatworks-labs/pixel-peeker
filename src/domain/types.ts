@@ -129,11 +129,41 @@ export interface PortSpec {
   /** How pixels are packed onto the wire. See `wireBitsPerPixel` in capacity.ts. */
   packing?: 'container' | 'container-legacy' | 'naive';
   /**
-   * Some vendors present one physical port as N independent fixture links —
-   * a Brompton 10G trunk is ten 1G connections. Informational: capacity is still
-   * computed from the trunk's total link rate.
+   * The breakout box at the far end of a trunk port — a NovaStar CVT8-5G on a 40G
+   * fibre, a CVT10 on a 10G one, a Brompton XD on a Tessera 10G trunk. Cabinets never
+   * hang off the trunk itself: each chain runs from one of the box's outputs, so wiring
+   * fills and checks the outputs one by one, and the trunk as their sum. See
+   * `domain/breakout.ts`. Absent on a port that cabinets plug straight into.
    */
-  subLinks?: number;
+  breakout?: BreakoutSpec;
+}
+
+/**
+ * A breakout box: one trunk in, `outputs` fixture links out. A fibre converter or a
+ * data distribution unit, depending on the vendor's word for it.
+ *
+ * The output links speak the trunk's protocol, so each one is costed with the trunk
+ * port's own efficiency and packing at `outputLinkGbps` — the trunk is not a different
+ * calibration, just a wider pipe — unless the box sets `outputEfficiency`. The trunk is
+ * also checked as the sum of its outputs (`TrunkLoad` in `domain/wiring.ts`), which binds
+ * only when the outputs could carry more between them than the trunk does.
+ */
+export interface BreakoutSpec extends Provenance {
+  id: string;
+  manufacturer: ProcessorMake;
+  model: string;
+  /** Fixture-side outputs — each one the start of a cable run of cabinets. */
+  outputs: number;
+  outputLinkGbps: number;
+  outputMedium: PortMedium;
+  /**
+   * The outputs' own link efficiency, for a box whose trunk runs at a different one. The
+   * Tessera XD-T is the case: an SQ200's QD-S trunk carries twelve 1G links' worth, and
+   * each output is still the 756 Mbps Tessera link. Absent: outputs inherit the trunk's
+   * `efficiency` and `efficiencyByDepth`.
+   */
+  outputEfficiency?: number;
+  notes?: string;
 }
 
 export interface InputSpec {
@@ -278,6 +308,10 @@ export interface ProcessorInstance {
 export interface Chain {
   id: string;
   processorId: string;
+  /**
+   * The output the chain runs from: a port id, or for a port with a breakout box the
+   * box output's id — `<trunk port id>/<n>`, see `domain/breakout.ts`.
+   */
   portId: string;
   cabinetIds: string[];
   /** Optional colour override for the wiring view. */

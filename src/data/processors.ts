@@ -22,7 +22,7 @@
  * constant — 756 Mbps of payload — reproduces every row of the table.
  */
 
-import type { ProcessorSpec, ReceivingCardSpec } from '../domain/types';
+import type { BreakoutSpec, ProcessorSpec, ReceivingCardSpec } from '../domain/types';
 
 // ---------------------------------------------------------------------------
 // Receiving cards
@@ -101,6 +101,108 @@ export const RECEIVER_LIBRARY: ReceivingCardSpec[] = [
 export function receiverById(id: string): ReceivingCardSpec | undefined {
   return RECEIVER_LIBRARY.find((r) => r.id === id);
 }
+
+/**
+ * Brompton Tessera gigabit link. Defined up here because the XD-T's outputs name it.
+ *
+ * 0.756 is read off Brompton's own per-port capacity table ("Tessera Processor Output
+ * Port Capacity", dl.bromptontech.com, processor version 3.5.2): 525,000 px at 8-bit,
+ * 420,000 at 10-bit and 350,000 at 12-bit, all at 60 Hz, on one gigabit output.
+ *
+ *   525,000 x 24 x 60 = 420,000 x 30 x 60 = 350,000 x 36 x 60 = 756 Mbps
+ *
+ * One constant, NAIVE packing. The 24 Hz row (1,312,500 / 1,050,000 / 875,000) and the
+ * 120 Hz row (262,500 / 210,000 / 175,000) are the same constant again. The S8 data
+ * sheet states the 8-bit figure independently ("a nominal 525K pixels at 8 bits per
+ * colour, 60Hz frame rate"). Ultra Low Latency mode halves every cell; not modelled.
+ *
+ * An earlier version of this file back-calculated 0.648 from the SX40's 9 Mpx headline
+ * on the assumption that the headline was a link limit. It is not — it is the
+ * processor's pixel cap, which the table shows is the same 9 Mpx at 8, 10 and 12-bit —
+ * and that assumption understated every Brompton link by 30% at 8-bit.
+ */
+const BROMPTON_LINK_EFFICIENCY = (525_000 * 24 * 60) / 1e9; // 0.756
+
+/**
+ * The Gen 3 trunk from an SQ200's QD-S: twelve 1G Tessera links' worth down one 10G
+ * fibre. Brompton print no pixel figure for a QD-S port; the XD-T data sheet gives the
+ * twelve outputs it feeds as "SQ200 via QD-S (All 12 ports)", each "capable of 525K
+ * pixels at 8bpc, 60Hz", and the launch copy says they "make full use of available 10G
+ * bandwidth when used with Gen 3 processing". So the trunk carries their sum:
+ *
+ *   12 x 525,000 x 24 x 60 = 9.072 Gbps of a 10G link
+ *
+ * An SX40 trunk carries ten (the XD-T runs only its first ten ports there), which is
+ * `BROMPTON_LINK_EFFICIENCY`. Written out over 10e9 because 12/10 of that constant comes
+ * out a hair under in floating point and floors one pixel short at 60 Hz.
+ */
+const BROMPTON_QDS_TRUNK_EFFICIENCY = (12 * 525_000 * 24 * 60) / 10e9; // 0.9072
+
+// ---------------------------------------------------------------------------
+// Breakout boxes — fibre converters and data distribution units
+// ---------------------------------------------------------------------------
+
+/**
+ * The boxes at the far end of a trunk port. Each output is costed with the TRUNK's
+ * efficiency and packing at `outputLinkGbps` (see `domain/breakout.ts`), so these
+ * records carry only what the box itself decides: how many outputs, and how fast. The
+ * XD-T also names its outputs' efficiency, because the QD-S trunk runs at a different one.
+ */
+export const CVT8_5G: BreakoutSpec = {
+  id: 'novastar-cvt8-5g',
+  manufacturer: 'NovaStar',
+  model: 'CVT8-5G',
+  outputs: 8,
+  outputLinkGbps: 5,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'NovaStar CVT8-5G Fiber Converter Specifications V1.1.0, 2026-05-11, novastar.tech',
+  notes:
+    'One 40G optical port in (41.25 Gbps; CVT8-5GS single-mode LC to 10 km, CVT8-5GM multi-mode MPO to 100/150 m on OM3/OM4), eight 5G BaseT Ethernet ports out on CAT6 up to 100 m. No backup optical port on the box. Half-1U, 33 W rated. Feeds 5G receiving cards (XA50 Pro, CA50E) only.',
+};
+
+export const CVT10: BreakoutSpec = {
+  id: 'novastar-cvt10',
+  manufacturer: 'NovaStar',
+  model: 'CVT10',
+  outputs: 10,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'NovaStar CVT10 Fiber Converter Specifications V1.3.7, novastar.tech',
+  notes:
+    'Two 10G optical ports (OPT 1 main, OPT 2 backup), ten gigabit Ethernet ports. All ten work from a 10.3125G (64b/66b) optical port, which is what the MX_4x10G_Fiber card has — NovaStar rate one of its trunks at ten gigabit ports’ load. From an older 10G (8b/10b) port only the first EIGHT Ethernet ports work; this record does not model that case. The CVT10 Pro (IP65, 2U) has the same ports and the same rule.',
+};
+
+export const TESSERA_XD: BreakoutSpec = {
+  id: 'brompton-xd',
+  manufacturer: 'Brompton',
+  model: 'Tessera XD',
+  outputs: 10,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'Brompton Tessera XD Distribution Unit Data Sheet, Apr 2023, bromptontech.com',
+  notes:
+    '"Each 10G trunk supports up to ten independent 1G connections to fixtures, each having the same pixel capacity as a 1G Tessera output" — 525K px at 8bpc, 60 Hz. 10G in on copper (Cat6A to 60 m) or single-mode fibre (to 2 km), with a thru port for up to five more XDs on the same trunk. Daisy-chained XDs SHARE the trunk: the combined load on every XD port of the same number must fit one 1G link. Not modelled — one XD per trunk here. Succeeded by the XD-T, which on an SX40 runs only its first ten outputs, so an SX40 trunk is this record either way.',
+};
+
+export const TESSERA_XD_T: BreakoutSpec = {
+  id: 'brompton-xd-t',
+  manufacturer: 'Brompton',
+  model: 'Tessera XD-T',
+  outputs: 12,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  outputEfficiency: BROMPTON_LINK_EFFICIENCY,
+  verified: true,
+  source:
+    'Brompton Tessera XD-T 10G to 1G Data Distribution Unit, Preliminary Data Sheet, Mar 2026 EN, bromptontech.com (Brompton-XD-T-Data-Sheet-Mar2026-EN-Preliminary.pdf)',
+  notes:
+    'The XD’s successor: twelve 1G Tessera outputs on etherCON (RJ45-compatible), "Each 1G output is capable of 525K pixels at 8bpc, 60Hz". Compatibility "SQ200 via QD-S (All 12 ports)" and "SX40 (First 10 ports only)", so it is attached to the SQ200’s trunks, which carry all twelve, and an SX40 trunk stays the ten-output XD. Dual 10G fibre In/Thru (single-mode, 1310 nm, to 2 km; no copper input, unlike the XD), daisy-chaining up to five more XDs with shared bandwidth — not modelled. 2U or truss, 50 W max, 4 kg. Trade press at LDI 2025 and NAB 2026 called it the "XD-S", and read the In/Thru pair as two inputs. The sheet is marked preliminary: re-check it when the final one is out.',
+};
+
+export const BREAKOUT_LIBRARY: BreakoutSpec[] = [CVT8_5G, CVT10, TESSERA_XD, TESSERA_XD_T];
 
 // ---------------------------------------------------------------------------
 // Processors
@@ -203,7 +305,8 @@ function mctrlGigPort(n: number) {
  * fixture links, which is NovaStar's own description ("A single optical port has the
  * same load capacity of 10x 1G Ethernet ports, and a single card supports up to 40x
  * Ethernet port outputs"). The Ethernet drops themselves live in a CVT10 converter at
- * the far end of the fibre, so the trunk is the thing the controller actually has.
+ * the far end of the fibre, so the trunk is the thing the controller actually has —
+ * and the CVT10's ten outputs are what chains are patched to.
  */
 function novaFibreTrunk10G(card: number, n: number) {
   return {
@@ -213,7 +316,7 @@ function novaFibreTrunk10G(card: number, n: number) {
     medium: 'SFP+' as const,
     efficiency: 0.95,
     packing: 'container' as const,
-    subLinks: 10,
+    breakout: CVT10,
   };
 }
 
@@ -224,7 +327,8 @@ function novaFibreTrunk10G(card: number, n: number) {
  * links serving 5G receiving cards (XA50 Pro, CA50E). Each link is a `nova5GPort`, so
  * the calibration — and its history — is documented there. Since V1.5.1 the same eight
  * links are also available on copper straight off the chassis, as the MX_8x5G_Base-T
- * output card, with the same per-port figures.
+ * output card, with the same per-port figures. Chains are patched to the CVT8-5G's
+ * outputs either way; on the copper card read "CVT8-5G 3" as the chassis's port 3.
  *
  * The 40G trunk at 12-bit gives 11,804,800 px, which is precisely NovaStar's "maximum
  * load of a single output card" for that card. At 8/10-bit they cap the card at
@@ -240,7 +344,7 @@ function novaFibreTrunk40G(card: number) {
     efficiency: NOVA_5G_EFFICIENCY,
     efficiencyByDepth: { 10: NOVA_5G_EFFICIENCY_10BIT },
     packing: 'container' as const,
-    subLinks: 8,
+    breakout: CVT8_5G,
   };
 }
 
@@ -251,27 +355,7 @@ function fibreTrunks10G(cards: number) {
   ).flat();
 }
 
-/**
- * Brompton Tessera gigabit link.
- *
- * 0.756 is read off Brompton's own per-port capacity table ("Tessera Processor Output
- * Port Capacity", dl.bromptontech.com, processor version 3.5.2): 525,000 px at 8-bit,
- * 420,000 at 10-bit and 350,000 at 12-bit, all at 60 Hz, on one gigabit output.
- *
- *   525,000 x 24 x 60 = 420,000 x 30 x 60 = 350,000 x 36 x 60 = 756 Mbps
- *
- * One constant, NAIVE packing. The 24 Hz row (1,312,500 / 1,050,000 / 875,000) and the
- * 120 Hz row (262,500 / 210,000 / 175,000) are the same constant again. The S8 data
- * sheet states the 8-bit figure independently ("a nominal 525K pixels at 8 bits per
- * colour, 60Hz frame rate"). Ultra Low Latency mode halves every cell; not modelled.
- *
- * An earlier version of this file back-calculated 0.648 from the SX40's 9 Mpx headline
- * on the assumption that the headline was a link limit. It is not — it is the
- * processor's pixel cap, which the table shows is the same 9 Mpx at 8, 10 and 12-bit —
- * and that assumption understated every Brompton link by 30% at 8-bit.
- */
-const BROMPTON_LINK_EFFICIENCY = (525_000 * 24 * 60) / 1e9; // 0.756
-
+/** Brompton Tessera gigabit link, at `BROMPTON_LINK_EFFICIENCY` (see the breakout boxes). */
 function bromptonGigPort(n: number) {
   return {
     id: `1g${n}`,
@@ -295,7 +379,19 @@ function bromptonTrunk(n: number) {
     medium: 'SFP+' as const,
     efficiency: BROMPTON_LINK_EFFICIENCY,
     packing: 'naive' as const,
-    subLinks: 10,
+    breakout: TESSERA_XD,
+  };
+}
+
+/**
+ * A QD-S 10G port on an SQ200, broken out by an XD-T: twelve 1G links' worth, see
+ * `BROMPTON_QDS_TRUNK_EFFICIENCY`. The XD-T's outputs keep the 1G link's own 0.756.
+ */
+function bromptonQdsTrunk(n: number) {
+  return {
+    ...bromptonTrunk(n),
+    efficiency: BROMPTON_QDS_TRUNK_EFFICIENCY,
+    breakout: TESSERA_XD_T,
   };
 }
 
@@ -582,7 +678,7 @@ export const PROCESSOR_LIBRARY: ProcessorSpec[] = [
     id: 'brompton-sq200',
     manufacturer: 'Brompton',
     model: 'Tessera SQ200 (36 Mpx, with QD-S)',
-    ports: Array.from({ length: 12 }, (_, i) => bromptonTrunk(i + 1)),
+    ports: Array.from({ length: 12 }, (_, i) => bromptonQdsTrunk(i + 1)),
     inputs: [
       { id: 'hdmi1', connector: 'HDMI 2.1', maxWidthPx: 8192, maxHeightPx: 4320, maxFps: 250, maxBitDepth: 12 },
       { id: 'dp1', connector: 'DP 2.1', maxWidthPx: 8192, maxHeightPx: 4320, maxFps: 250, maxBitDepth: 12 },
@@ -596,7 +692,7 @@ export const PROCESSOR_LIBRARY: ProcessorSpec[] = [
     source:
       'Brompton Tessera SQ200 Data Sheet, Oct 2025 EN, and Tessera QD-S Data Sheet, June 2026 EN, bromptontech.com',
     notes:
-      'A SYSTEM record: the SQ200 itself has two 100G QSFP28 outputs (primary and closed-loop backup) and no fixture ports. They feed a QD-S distribution unit, whose twelve 10G SFP+ ports are what is modelled here — each breaking out to ten 1G fixture links through an XD-S, exactly as an SX40 trunk does. Pixel capacity is licensed at 9, 18, 27 or 36 Mpx; this record is the 36 Mpx (8K) tier, and 36 Mpx at 36 bits and 60 Hz is precisely twelve trunks at 0.756 — Brompton size the QD-S to the licence. For a lower tier, set totalCapacityPx to the licence. The inputs listed are one baseband input card (HDMI 2.1, DP 2.1, 12G-SDI, one active at a time); up to four cards, plus 100G/25G/10G AV-over-IP (ST 2110, IPMX) up to 8K.',
+      'A SYSTEM record: the SQ200 itself has two 100G QSFP28 outputs (primary and closed-loop backup) and no fixture ports. They feed a QD-S distribution unit, whose twelve 10G SFP+ ports are what is modelled here — each breaking out to twelve 1G fixture links through an XD-T, two more than an SX40 trunk carries (the XD-T sheet: "SQ200 via QD-S (All 12 ports)"). Original XDs work too and use ten of them. Pixel capacity is licensed at 9, 18, 27 or 36 Mpx; this record is the 36 Mpx (8K) tier. The licence binds, not the links: the twelve trunks could carry 75.6 Mpx at 8-bit and 50.4 Mpx at 12-bit. For a lower tier, set totalCapacityPx to the licence. The inputs listed are one baseband input card (HDMI 2.1, DP 2.1, 12G-SDI, one active at a time); up to four cards, plus 100G/25G/10G AV-over-IP (ST 2110, IPMX) up to 8K.',
   },
 ];
 

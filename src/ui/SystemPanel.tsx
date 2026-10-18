@@ -192,7 +192,31 @@ function PortLoadingSection() {
                     <td style={{ textAlign: 'right' }}>{pct}%</td>
                   </tr>
                 );
-              }),
+              })
+              .concat(
+                load.trunks
+                  .filter((t) => t.usedPx > 0)
+                  .map((t) => {
+                    const pct = Math.round(t.utilisation * 100);
+                    return (
+                      <tr
+                        key={`${load.processor.id}-${t.port.id}-trunk`}
+                        className={pct > 100 ? 'over' : pct > 90 ? 'tight' : ''}
+                        title={`${t.port.breakout!.model} trunk: ${t.usedPx.toLocaleString()} of ${t.capacityPx.toLocaleString()} px across its outputs`}
+                      >
+                        <td>
+                          <span className="swatch" style={{ background: 'transparent' }} />
+                          {t.port.label} trunk
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {t.outputs.reduce((n, p) => n + p.cabinets.length, 0)}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{t.usedPx.toLocaleString()}</td>
+                        <td style={{ textAlign: 'right' }}>{pct}%</td>
+                      </tr>
+                    );
+                  }),
+              ),
           )}
         </tbody>
       </table>
