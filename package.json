@@ -35,8 +35,6 @@
   "description": "Design LED video walls: cabinet layout, processor patching, and port capacity calculated against published manufacturer figures.",
   "license": "MIT",
   "overrides": {
-    "miniflare": {
-      "undici": "^7.30.1"
-    }
+    "undici@7": "^7.30.1"
   }
 }
