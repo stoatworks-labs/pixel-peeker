@@ -33,5 +33,10 @@
     "wrangler": "^4.151.1"
   },
   "description": "Design LED video walls: cabinet layout, processor patching, and port capacity calculated against published manufacturer figures.",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "miniflare": {
+      "undici": "^7.30.1"
+    }
+  }
 }
