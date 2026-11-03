@@ -14,6 +14,8 @@ the ports, and find out whether it actually fits, preferably before you find out
 It runs entirely in the browser. There's no account, and nothing gets uploaded, because there's no
 server to upload it to. It deploys to Cloudflare as a static site.
 
+There's more on [its page at stoatworks-labs.com](https://stoatworks-labs.com/web-tools/pixel-peeker/), along with the [user guide](https://stoatworks-labs.com/software/pixel-peeker/guide/) and [notes on running it on your own server](https://stoatworks-labs.com/web-tools/self-hosting/).
+
 **Status: alpha.** The capacity maths is tested against published manufacturer figures, the power
 circuits are steady-state arithmetic, and the cabinet library covers 150 cabinets across five
 manufacturers and 15 processors, each from its maker's own datasheet. One export format is

@@ -1,0 +1,16 @@
+# Pixel Peeker
+
+> LED wall layout, and what each port will carry
+
+A browser tool for planning LED video walls: lay out the cabinets, add NovaStar or Brompton processors, wire up the ports, and see each port's load and headroom. The capacity model allows for the power-of-two packing the controllers actually use, so it matches the manufacturers' published per-port figures instead of promising more than a port will carry.
+
+It's a Stoatworks Labs web tool: free, and it runs in a web browser.
+
+## Links
+
+- [Pixel Peeker, the app](https://pixel-peeker.stoatworks-labs.com/): runs in the browser, free
+- [Project page](https://stoatworks-labs.com/software/pixel-peeker/)
+- [Web tool page](https://stoatworks-labs.com/web-tools/pixel-peeker/)
+- [User guide](https://stoatworks-labs.com/software/pixel-peeker/guide/)
+- [Source on GitHub](https://github.com/stoatworks-labs/pixel-peeker)
+- [Self-hosting](https://stoatworks-labs.com/web-tools/self-hosting/): run it on your own server

@@ -74,9 +74,14 @@ function AboutButton() {
   /* Opens the shared About dialog — see public/about.js, which delegates this
      attribute from the document, so nothing needs importing here. */
   return (
-    <button type="button" data-stoatworks-about>
-      About
-    </button>
+    <>
+      <button type="button" data-stoatworks-about>
+        About
+      </button>
+      <a className="topbar-link" href="https://stoatworks-labs.com/web-tools/pixel-peeker/" target="_blank" rel="noopener">
+        stoatworks-labs.com
+      </a>
+    </>
   );
 }
 

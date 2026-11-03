@@ -555,3 +555,10 @@ kbd {
 .circuits tr.over td { color: var(--err); }
 .check-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
 .check-row input { width: auto; }
+
+/* The link to the tool's page on stoatworks-labs.com, after About. */
+.topbar-link {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
