@@ -1,27 +1,32 @@
-/* Pixel Peeker — dark, dense, built to be read in a dim production office. */
+/* Pixel Peeker — dense, built to be read in a dim production office.
+   Colours come from the shared Stoatworks theme (stoatworks-theme.css, imported
+   first), so the panels follow the system's light or dark setting the way every
+   fleet tool does; the wall canvas is a stage and stays dark in both modes. */
 
 :root {
-  --bg: #0e1116;
-  --panel: #161b22;
-  --panel-2: #1c222b;
-  --line: #2a323d;
-  --ink: #e6edf3;
-  --muted: #8b949e;
-  --accent: #2f9ee0;
-  --accent-dim: #1b6fa3;
-  --ok: #3fb950;
-  --warn: #d29922;
-  --err: #f85149;
-  --radius: 6px;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  /* Line calc view: data is --accent, power is this. */
-  --power: #f0883e;
-  --ink-dim: #b1bac4;
-  --line-soft: #20262f;
-
-  /* Read by the vendored support footer, which otherwise inherits page colour. */
-  --sw-support-accent: var(--accent);
+  --bg: var(--sw-paper);
+  --panel: var(--sw-card);
+  --panel-2: var(--sw-tint);
+  --line: var(--sw-line);
+  --ink: var(--sw-ink);
+  --muted: var(--sw-muted);
+  --accent: var(--sw-accent);
+  --on-accent: var(--sw-on-accent);
+  --ok: var(--sw-ok);
+  --warn: var(--sw-warn);
+  --err: var(--sw-bad);
+  --radius: var(--sw-radius-sm);
+  --mono: var(--sw-mono);
+  /* Line calc view: data is --accent, power is this. Orange means power, so it
+     keeps its hue, deeper on paper. */
+  --power: #b45a14;
+  --ink-dim: color-mix(in srgb, var(--sw-ink) 55%, var(--sw-muted));
+  --line-soft: var(--sw-line);
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --power: #f0883e; }
+}
+:root[data-theme="dark"] { --power: #f0883e; }
 
 * { box-sizing: border-box; }
 
@@ -41,29 +46,32 @@ html, body, #root {
 body {
   background: var(--bg);
   color: var(--ink);
-  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font: 13px/1.45 var(--sw-font);
   overflow-x: hidden;
 }
 
 button {
   font: inherit;
   color: var(--ink);
-  background: var(--panel-2);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 5px 10px;
   cursor: pointer;
 }
-button:hover:not(:disabled) { background: #232b36; border-color: #3a4552; }
+button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.4; cursor: default; }
-button.primary { background: var(--accent-dim); border-color: var(--accent); }
-button.primary:hover:not(:disabled) { background: var(--accent); }
-button.danger:hover:not(:disabled) { background: #5c1f1c; border-color: var(--err); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+button.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--err) 16%, var(--panel));
+  border-color: var(--err);
+}
 
 input, select, textarea {
   font: inherit;
   color: var(--ink);
-  background: #0d1117;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 4px 7px;
@@ -83,15 +91,35 @@ input[type="number"] { font-family: var(--mono); }
   height: 100vh;
 }
 
+/* The top bar is the theme's navy bar (.sw-bar). The page's own bare button,
+   input and select rules are unlayered and would beat the bar's, so the bar's
+   look is restated here for its controls. */
 .topbar {
   display: flex;
   align-items: center;
   gap: 18px;
   padding: 8px 14px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
+.topbar button {
+  background: transparent;
+  color: var(--sw-navy-ink);
+  border-color: var(--sw-navy-line);
+}
+.topbar button:hover:not(:disabled) { border-color: var(--sw-accent-soft); }
+.topbar input,
+.topbar select {
+  background: var(--sw-navy-tint);
+  color: var(--sw-navy-ink);
+  border-color: var(--sw-navy-line);
+}
+.topbar input:focus,
+.topbar select:focus { border-color: var(--sw-accent-soft); }
+.topbar option { background: var(--sw-card); color: var(--sw-ink); }
+.topbar .field label,
+.topbar .stat .k { color: var(--sw-navy-ink-2); }
+/* About sits at the right-hand end of the bar, after the stats. */
+.topbar > .row:last-child { margin-left: auto; }
 
 .brand {
   font-weight: 700;
@@ -99,7 +127,7 @@ input[type="number"] { font-family: var(--mono); }
   font-size: 14px;
   white-space: nowrap;
 }
-.brand span { color: var(--accent); }
+.brand-name span { color: var(--sw-accent-soft); }
 
 .topbar .name-input { width: 200px; }
 
@@ -171,7 +199,18 @@ input[type="number"] { font-family: var(--mono); }
   background:
     linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 20px 20px,
     linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 20px 20px,
-    var(--bg);
+    var(--sw-stage);
+  /* The wall is output: dark in both modes, and the toolbar and hint that float
+     on it keep dark-ground colours to match. */
+  --panel: color-mix(in srgb, var(--sw-stage-ink) 5%, var(--sw-stage));
+  --line: var(--sw-stage-line);
+  --ink: var(--sw-stage-ink);
+  --muted: color-mix(in srgb, var(--sw-stage-ink) 62%, var(--sw-stage));
+  --accent: var(--sw-accent-soft);
+  --on-accent: var(--sw-navy);
+  --err: #f85149;
+  color: var(--ink);
+  color-scheme: dark;
 }
 
 /* ---------------------------------------------------------------- panels */
@@ -182,11 +221,9 @@ input[type="number"] { font-family: var(--mono); }
 }
 .section h2 {
   margin: 0 0 8px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--muted);
-  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 700;
 }
 .section h2 .count { color: var(--accent); }
 
@@ -219,7 +256,7 @@ input[type="number"] { font-family: var(--mono); }
 }
 .lib-item:hover { background: var(--panel-2); }
 .lib-item.active {
-  background: #16303f;
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
   border-color: var(--accent);
 }
 .lib-item .model { font-weight: 600; }
@@ -240,8 +277,8 @@ input[type="number"] { font-family: var(--mono); }
   border-radius: 3px;
   vertical-align: middle;
 }
-.badge.unverified { background: #4a3a10; color: #e3b341; }
-.badge.verified { background: #12341c; color: var(--ok); }
+.badge.unverified { background: color-mix(in srgb, var(--warn) 18%, var(--panel)); color: var(--warn); }
+.badge.verified { background: color-mix(in srgb, var(--ok) 18%, var(--panel)); color: var(--ok); }
 
 /* port table */
 
@@ -265,7 +302,7 @@ input[type="number"] { font-family: var(--mono); }
 
 .meter {
   height: 4px;
-  background: #0d1117;
+  background: var(--panel-2);
   border-radius: 2px;
   overflow: hidden;
   margin-top: 3px;
@@ -311,7 +348,7 @@ input[type="number"] { font-family: var(--mono); }
   left: 10px;
   display: flex;
   gap: 6px;
-  background: rgba(14, 17, 22, 0.85);
+  background: color-mix(in srgb, var(--sw-stage) 85%, transparent);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 5px;
@@ -323,7 +360,7 @@ input[type="number"] { font-family: var(--mono); }
   left: 10px;
   color: var(--muted);
   font-size: 11px;
-  background: rgba(14, 17, 22, 0.8);
+  background: color-mix(in srgb, var(--sw-stage) 80%, transparent);
   padding: 4px 8px;
   border-radius: var(--radius);
   pointer-events: none;
@@ -370,10 +407,15 @@ kbd {
   white-space: nowrap;
 }
 .modes button + button { border-left: 1px solid var(--line); }
-.modes button.on { background: var(--accent-dim); color: var(--ink); }
+.modes button.on { background: var(--accent); color: var(--on-accent); }
 .modes button:hover:not(.on) { background: var(--panel-2); color: var(--ink); }
+/* On the navy bar. */
+.topbar .modes { border-color: var(--sw-navy-line); }
+.topbar .modes button { border-color: var(--sw-navy-line); color: var(--sw-navy-ink-2); }
+.topbar .modes button.on { background: var(--sw-accent-soft); color: var(--sw-navy); font-weight: 600; }
+.topbar .modes button:hover:not(.on) { background: var(--sw-navy-tint); color: var(--sw-navy-ink); }
 
-.topbar .tagline { color: var(--muted); font-size: 12px; }
+.topbar .tagline { color: var(--sw-navy-ink-2); font-size: 12px; }
 /* On a phone the tagline costs a third of the screen before the answer starts. */
 @media (max-width: 700px) { .topbar .tagline { display: none; } }
 
@@ -415,16 +457,14 @@ kbd {
 .lc-box {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--sw-radius);
   padding: 12px 14px 14px;
 }
 .lc-box h2 {
   margin: 0 0 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--muted);
-  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .lc-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px; min-width: 0; }
@@ -455,7 +495,7 @@ kbd {
 .lc-verdict {
   border: 1px solid var(--line);
   border-left-width: 3px;
-  border-radius: var(--radius);
+  border-radius: var(--sw-radius);
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
   padding: 16px 18px 18px;
 }
@@ -477,7 +517,7 @@ kbd {
   background: var(--panel);
   border: 1px solid var(--line);
   border-top-width: 2px;
-  border-radius: var(--radius);
+  border-radius: var(--sw-radius);
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -498,7 +538,7 @@ kbd {
 .lc-stat--power .lc-stat__value { color: var(--power); }
 .lc-stat__note { font-size: 11px; color: var(--ink-dim); }
 
-.lc-bar { height: 5px; background: #0d1117; border-radius: 3px; overflow: hidden; margin: 4px 0 6px; }
+.lc-bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin: 4px 0 6px; }
 .lc-bar__fill { display: block; height: 100%; border-radius: 3px; }
 .lc-bar--data .lc-bar__fill { background: var(--accent); }
 .lc-bar--power .lc-bar__fill { background: var(--power); }
@@ -534,7 +574,7 @@ kbd {
 
 .lc-src { margin: auto 0 0; padding-top: 10px; font-size: 10px; color: var(--muted); opacity: 0.75; line-height: 1.4; }
 
-.lc-wall { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+.lc-wall { background: var(--panel); border: 1px solid var(--line); border-radius: var(--sw-radius); padding: 14px; }
 .lc-wall > header { margin-bottom: 12px; }
 .lc-wall h2 { margin: 0; font-size: 14px; font-weight: 600; }
 .lc-wall > header p { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
@@ -556,9 +596,9 @@ kbd {
 .check-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
 .check-row input { width: auto; }
 
-/* The link to the tool's page on stoatworks-labs.com, after About. */
+/* The link to the tool's page on stoatworks-labs.com, just before About. */
 .topbar-link {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--sw-navy-ink-2);
   white-space: nowrap;
 }

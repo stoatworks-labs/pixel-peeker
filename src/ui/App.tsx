@@ -75,12 +75,12 @@ function AboutButton() {
      attribute from the document, so nothing needs importing here. */
   return (
     <>
-      <button type="button" data-stoatworks-about>
-        About
-      </button>
       <a className="topbar-link" href="https://stoatworks-labs.com/web-tools/pixel-peeker/" target="_blank" rel="noopener">
         stoatworks-labs.com
       </a>
+      <button type="button" data-stoatworks-about>
+        About
+      </button>
     </>
   );
 }
@@ -88,9 +88,12 @@ function AboutButton() {
 function LineApp({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
   return (
     <div className="app">
-      <div className="topbar">
-        <div className="brand">
-          PIXEL<span>PEEKER</span>
+      <div className="topbar sw-bar">
+        <div className="brand sw-brand">
+          <span className="sw-mark" aria-hidden="true">⊞</span>
+          <span className="brand-name">
+            PIXEL<span>PEEKER</span>
+          </span>
         </div>
         <ModeSwitch mode={mode} onChange={setMode} />
         <div className="tagline">
@@ -120,9 +123,12 @@ function DesignApp({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }
 
   return (
     <div className="app">
-      <div className="topbar">
-        <div className="brand">
-          PIXEL<span>PEEKER</span>
+      <div className="topbar sw-bar">
+        <div className="brand sw-brand">
+          <span className="sw-mark" aria-hidden="true">⊞</span>
+          <span className="brand-name">
+            PIXEL<span>PEEKER</span>
+          </span>
         </div>
 
         <ModeSwitch mode={mode} onChange={setMode} />
